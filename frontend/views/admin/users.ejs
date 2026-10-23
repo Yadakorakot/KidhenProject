@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KIDHEN | <%= title %></title>
+  <link rel="stylesheet" href="/css/output.css">
+</head>
+<body class="bg-[#EEEDEA]">
+
+<%
+  const ROLE_LABEL = { ADMIN: "Admin", STAFF: "Staff", USER: "User" };
+  const ROLE_STYLE = {
+    ADMIN: "bg-[#FDDCDC] text-[#E01E1E]",
+    STAFF: "bg-[#DCE8FD] text-[#1F2A8A]",
+    USER:  "bg-[#E3FBD2] text-[#3A8A12]",
+  };
+%>
+
+<div class="flex min-h-screen">
+  <%- include("../partials/sidebar-admin") %>
+
+  <main class="flex-1">
+    <%- include("../partials/topbar") %>
+
+    <section class="p-4">
+      <div class="bg-white p-6 min-h-[640px] flex flex-col gap-6">
+
+        <!-- การ์ดสรุป -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="h-[92px] rounded-2xl bg-[#EEF3FF] flex flex-col items-center justify-center">
+            <p class="text-sm font-semibold">ผู้ใช้งานทั้งหมด</p>
+            <p class="text-3xl font-bold mt-1"><%= stats.total %></p>
+          </div>
+          <div class="h-[92px] rounded-2xl bg-[#FDF1EA] flex flex-col items-center justify-center">
+            <p class="text-sm font-semibold">ผู้ดูแลระบบ</p>
+            <p class="text-3xl font-bold mt-1"><%= stats.admin %></p>
+          </div>
+          <div class="h-[92px] rounded-2xl bg-[#FFF6EB] flex flex-col items-center justify-center">
+            <p class="text-sm font-semibold">เจ้าหน้าที่</p>
+            <p class="text-3xl font-bold mt-1"><%= stats.staff %></p>
+          </div>
+        </div>
+
+        <!-- ค้นหา + กรองบทบาท -->
+        <form method="GET" action="/admin/users" class="flex flex-wrap items-center gap-4">
+          <input type="text" name="q" value="<%= filters.q %>" placeholder="ค้นหาชื่อหรืออีเมล"
+                 class="w-full md:w-[320px] h-10 px-5 rounded-lg border border-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F2A8A]">
+
+          <select name="role" onchange="this.form.submit()"
+                  class="h-10 w-[140px] px-3 rounded-lg border border-gray-400 bg-white text-sm md:ml-auto">
+            <option value="">ทุกบทบาท</option>
+            <% ROLES.forEach(r => { %>
+              <option value="<%= r %>" <%= filters.role === r ? "selected" : "" %>><%= ROLE_LABEL[r] %></option>
+            <% }) %>
+          </select>
+        </form>
+
+        <!-- ตารางผู้ใช้ -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border border-gray-200">
+            <thead class="bg-[#EEEFF3] text-gray-600">
+              <tr>
+                <th class="text-left py-3 px-4 font-medium border border-gray-200 w-[25%]">ชื่อผู้ใช้</th>
+                <th class="text-left py-3 px-4 font-medium border border-gray-200 w-[35%]">อีเมล</th>
+                <th class="text-left py-3 px-4 font-medium border border-gray-200 w-[20%]">บทบาท</th>
+                <th class="text-left py-3 px-4 font-medium border border-gray-200 w-[20%]">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% if (list.length === 0) { %>
+                <tr>
+                  <td colspan="4" class="py-10 text-center text-gray-400">ไม่พบผู้ใช้</td>
+                </tr>
+              <% } %>
+
+              <% list.forEach(u => { %>
+                <tr class="hover:bg-[#F7F8FB]">
+                  <td class="py-2.5 px-4 border border-gray-200"><%= u.name %></td>
+                  <td class="py-2.5 px-4 border border-gray-200"><%= u.email %></td>
+                  <td class="py-2.5 px-4 border border-gray-200">
+                    <span class="inline-block w-[90px] py-0.5 rounded-full text-xs font-semibold text-center <%= ROLE_STYLE[u.role] %>">
+                      <%= ROLE_LABEL[u.role] %>
+                    </span>
+                  </td>
+                  <td class="py-2.5 px-4 border border-gray-200">
+                    <a href="/admin/users/<%= u.id %>"
+                       class="inline-block px-4 py-1 rounded-md border border-gray-500 bg-white text-xs font-semibold hover:bg-gray-100">
+                      แก้ไข
+                    </a>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

@@ -1,14 +1,24 @@
 <header class="h-[64px] flex items-center justify-between px-6 border-b-4 border-[#E2E1DD]">
-  <h1 class="text-2xl font-bold text-[#1F2A8A]"><%= title %></h1>
+    <h1 class="text-2xl font-bold text-[#1F2A8A]">
+        <%= title %>
+    </h1>
 
-  <div class="flex items-center gap-3">
-    <button class="w-10 h-10 rounded-full bg-[#D9D9D9] flex items-center justify-center" title="การแจ้งเตือน">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
-        <path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/>
-      </svg>
-    </button>
-    <a href="/logout" title="ออกจากระบบ">
-      <img src="/img/avatar.png" alt="โปรไฟล์" class="w-10 h-10 rounded-full object-cover bg-red-700">
-    </a>
-  </div>
+    <div class="flex items-center gap-3">
+        <button class="relative w-10 h-10 rounded-full bg-[#D9D9D9] flex items-center justify-center"
+            title="การแจ้งเตือน">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="black">
+                <path
+                    d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-2 2v1h18v-1z" />
+            </svg>
+            <% if (unreadCount> 0) { %>
+                <span
+                    class="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
+                    <%= unreadCount %>
+                </span>
+                <% } %>
+        </button>
+        <a href="/logout" title="ออกจากระบบ">
+            <img src="/img/avatar.png" alt="โปรไฟล์" class="w-10 h-10 rounded-full object-cover bg-red-700">
+        </a>
+    </div>
 </header>

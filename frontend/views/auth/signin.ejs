@@ -17,30 +17,29 @@
         <form method="POST" action="/signin"
             class="w-full max-w-sm bg-white rounded-3xl p-8 flex flex-col gap-4 shadow-xl">
 
-            <input type="text" name="username" placeholder="Username"
+            <input type="text" name="username" placeholder="Username" required
                 class="h-13 rounded-full border border-gray-800 px-5 text-sm placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F6A85A]">
 
-            <input type="password" name="password" placeholder="Password"
+            <input type="password" name="password" placeholder="Password" required
                 class="h-13 rounded-full border border-gray-800 px-5 text-sm placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F6A85A]">
 
             <% if (error) { %>
-                <p class="text-sm text-red-600 text-center">
-                    <%= error %>
-                </p>
-                <% } %>
+                <p class="text-sm text-red-600 text-center"><%= error %></p>
+            <% } %>
 
-                    <a href="/demo-admin" class="block w-full hover:opacity-80 transition">
-                        <img src="/img/btn-signin.svg" alt="Continue with Google" class="w-full h-auto">
-                    </a>
+            <!-- ปุ่ม SIGN IN: ส่งฟอร์มไปตรวจรหัส -->
+            <button type="submit" class="w-full hover:opacity-80 transition">
+                <img src="/img/btn-signin.svg" alt="Sign in" class="w-full h-auto">
+            </button>
 
-                    <div class="flex items-center gap-3 text-xs text-gray-400">
-                        <span class="flex-1 h-px bg-gray-200"></span> or <span class="flex-1 h-px bg-gray-200"></span>
-                    </div>
+            <div class="flex items-center gap-3 text-xs text-gray-400">
+                <span class="flex-1 h-px bg-gray-200"></span> or <span class="flex-1 h-px bg-gray-200"></span>
+            </div>
 
-                    <button type="button" onclick="alert('Google Login จะเชื่อมต่อภายหลัง')"
-                        class="w-full hover:opacity-80 transition">
-                        <img src="/img/btn-google.svg" alt="Continue with Google" class="w-full h-auto">
-                    </button>
+            <button type="button" onclick="alert('Google Login จะเชื่อมต่อภายหลัง')"
+                class="w-full hover:opacity-80 transition">
+                <img src="/img/btn-google.svg" alt="Continue with Google" class="w-full h-auto">
+            </button>
 
         </form>
 

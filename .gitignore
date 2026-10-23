@@ -6,3 +6,7 @@ node_modules/
 dist/
 build/
 *.pem
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+frontend/public/uploads/

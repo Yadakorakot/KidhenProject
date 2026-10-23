@@ -1,0 +1,26 @@
+<%
+  const menus = [
+    { key: "home",          label: "หน้าหลัก",          href: "/user/home" },
+    { key: "new",           label: "แจ้งปัญหา",         href: "/user/requests/new" },
+    { key: "requests",      label: "สถานะคำร้องของฉัน",  href: "/user/requests" },
+    { key: "notifications", label: "แจ้งเตือน",         href: "/user/notifications" },
+  ];
+%>
+
+<aside class="w-[220px] min-h-screen bg-[#161D63] flex flex-col shrink-0">
+  <div class="px-6 py-6">
+    <img src="/img/logo-small.svg" alt="KIDHEN" class="block mx-auto w-[150px] h-auto">
+  </div>
+
+  <nav class="flex flex-col mt-4">
+    <% menus.forEach(m => { %>
+      <a href="<%= m.href %>"
+         class="px-6 py-2.5 text-sm font-semibold border-l-4
+                <%= active === m.key
+                    ? 'border-[#F6A85A] bg-white/10 text-[#F6A85A]'
+                    : 'border-transparent text-white hover:bg-white/5' %>">
+        <%= m.label %>
+      </a>
+    <% }) %>
+  </nav>
+</aside>
