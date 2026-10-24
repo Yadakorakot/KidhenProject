@@ -1,31 +1,14 @@
-const TYPES = ["อาคารและสถานที่", "กิจกรรม", "การเรียนการสอน", "ข้อเสนอแนะ", "อื่น ๆ"];
+const { load, save } = require("./store");
+
+const TYPES = ["กิจกรรม", "ไอทีซัพพอร์ต", "หลักสูตร", "อาคาร/สถานที่", "ข้อเสนอแนะ"];
 const STATUSES = ["รอดำเนินการ", "กำลังดำเนินการ", "เสร็จสิ้น"];
 
-const requests = [
-  {
-    id: 4, code: "#0004", title: "เครื่องปรับอากาศห้อง 306 เสีย",
-    type: "อาคารและสถานที่", date: "07/09/2569", status: "รอดำเนินการ",
-    detail: "ไม่เย็นและมีเสียงดัง", images: ["/img/0004-1.jpg", "/img/0004-2.jpg"], note: "",
-    owner: "user"
-  },
-  {
-    id: 3, code: "#0003", title: "ไฟทางเดินชั้น 2 ดับ",
-    type: "อาคารและสถานที่", date: "06/09/2569", status: "กำลังดำเนินการ",
-    detail: "ไฟดับ 3 ดวงบริเวณหน้าห้อง 205", images: [], note: "",
-    owner: "user"
-  },
-  {
-    id: 2, code: "#0002", title: "ขอใช้ห้องประชุมจัดกิจกรรมชมรม",
-    type: "กิจกรรม", date: "05/09/2569", status: "เสร็จสิ้น",
-    detail: "ขอใช้ห้องประชุมใหญ่ วันที่ 20/09/2569", images: [], note: "อนุมัติแล้ว",
-    owner: "user"
-  },
-  {
-    id: 1, code: "#0001", title: "โปรเจกเตอร์ห้อง 401 ภาพไม่ขึ้น",
-    type: "การเรียนการสอน", date: "04/09/2569", status: "กำลังดำเนินการ",
-    detail: "เปิดเครื่องแล้วขึ้นจอฟ้า ไม่มีภาพ", images: [], note: "",
-    owner: "user"
-  },
-];
+// เริ่มจากไฟล์ ถ้ายังไม่มี = ว่างเปล่า
+const requests = load("requests", []);
 
-module.exports = { requests, TYPES, STATUSES };
+// เรียกทุกครั้งหลังเพิ่มหรือแก้คำร้อง
+function saveRequests() {
+  save("requests", requests);
+}
+
+module.exports = { requests, TYPES, STATUSES, saveRequests };

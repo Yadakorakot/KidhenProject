@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { requests, TYPES, STATUSES } = require("../data/mockRequests");
+const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
 const { notify } = require("../data/mockNotifications");
 const { users, ROLES } = require("../data/mockUsers");
 const { faqs, FAQ_STATUSES } = require("../data/mockFaqs");
@@ -72,14 +72,31 @@ router.post("/requests/:id/update", (req, res) => {
   const oldNote = item.note;
 
   if (STATUSES.includes(req.body.status)) item.status = req.body.status;
+
+  if (item.status !== oldStatus) {
+  item.history = item.history || [];
+  item.history.push({ status: item.status, at: new Date() });
+}
   item.note = (req.body.note || "").trim();
 
   // ส่งแจ้งเตือนเฉพาะเมื่อมีอะไรเปลี่ยน
   if (item.status !== oldStatus || item.note !== oldNote) {
-    let message = `คำร้อง ${item.code} สถานะ: ${item.status}`;
-    if (item.note) message += ` — ${item.note}`;
-    notify(item.owner, item.id, message);
+  let title;
+  if (item.status !== oldStatus && item.status === "เสร็จสิ้น") {
+    title = `คำร้อง ${item.code} ได้รับการแก้ไขแล้ว`;
+  } else if (item.status !== oldStatus) {
+    title = `คำร้อง ${item.code} ได้รับการอัพเดตสถานะ`;
+  } else {
+    title = `คำร้อง ${item.code} มีข้อความจากเจ้าหน้าที่`;
   }
+
+  let message = `สถานะเปลี่ยนเป็น ${item.status}`;
+  if (item.note) message += ` ${item.note}`;
+
+  notify(item.owner, { requestId: item.id, title, message, status: item.status });
+}
+
+  saveRequests();
 
   res.redirect(`/admin/requests/${item.id}?saved=1`);
 });

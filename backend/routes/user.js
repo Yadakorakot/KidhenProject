@@ -3,9 +3,10 @@ const path = require("path");
 const multer = require("multer");
 const router = express.Router();
 
-const { requests, TYPES } = require("../data/mockRequests");
+const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
 const { faqs } = require("../data/mockFaqs");
-const { formatThaiShortDate } = require("../utils/date");
+const { formatThaiDate, formatThaiShortDate } = require("../utils/date");
+const { notifications, saveNotifications } = require("../data/mockNotifications");
 
 // ---------- ตั้งค่าอัปโหลดรูป ----------
 const upload = multer({
@@ -90,10 +91,110 @@ router.post("/requests/new", (req, res) => {
       images: (req.files || []).map((f) => "/uploads/" + f.filename),
       note: "",
       owner: req.session.user.username,
+      history: [{ status: "รอดำเนินการ", at: new Date() }],
     });
+
+    saveRequests();
 
     res.redirect("/user/home?sent=1");
   });
+});
+
+// ---------- หน้าสถานะคำร้องของฉัน ----------
+router.get("/requests", (req, res) => {
+  const username = req.session.user.username;
+  const { q = "", type = "", status = "" } = req.query;
+  const keyword = q.trim().toLowerCase();
+
+  const list = requests.filter((r) =>
+    r.owner === username &&
+    (!keyword || r.title.toLowerCase().includes(keyword) || r.code.includes(keyword)) &&
+    (!type || r.type === type) &&
+    (!status || r.status === status)
+  );
+
+  res.render("user/requests", {
+    title: "สถานะคำร้องของฉัน",
+    active: "requests",
+    list,
+    TYPES,
+    STATUSES,
+    filters: { q, type, status },
+  });
+});
+
+// ---------- หน้ารายละเอียดคำร้อง ----------
+router.get("/requests/:id", (req, res) => {
+  const item = requests.find(
+    (r) => r.id === Number(req.params.id) && r.owner === req.session.user.username
+  );
+  if (!item) return res.redirect("/user/requests");
+
+  const STEP_STATUS = ["รอดำเนินการ", "กำลังดำเนินการ", "เสร็จสิ้น"];
+  const STEP_LABEL  = ["ยื่นคำร้อง", "อยู่ระหว่างการดำเนินการ", "เสร็จสิ้น"];
+  const current = STEP_STATUS.indexOf(item.status);
+  const history = item.history || [];
+
+  const steps = STEP_STATUS.map((s, i) => {
+    const entry = [...history].reverse().find((h) => h.status === s);
+    return {
+      label: STEP_LABEL[i],
+      state: i < current ? "done" : i === current ? "current" : "todo",
+      time: i <= current && entry ? formatThaiDate(entry.at) : "",
+    };
+  });
+
+  res.render("user/request-detail", {
+    title: "สถานะคำร้องของฉัน",
+    active: "requests",
+    item,
+    steps,
+    current,
+  });
+});
+
+// ---------- หน้าแจ้งเตือน ----------
+router.get("/notifications", (req, res) => {
+  const username = req.session.user.username;
+  const tab = req.query.tab || "all";
+
+  const mine = notifications.filter((n) => n.to === username);
+
+  let list = mine;
+  if (tab === "unread")  list = mine.filter((n) => !n.read);
+  if (tab === "request") list = mine.filter((n) => n.category === "request");
+  if (tab === "system")  list = mine.filter((n) => n.category === "system");
+
+  // 1) ทำสำเนาไว้แสดง โดยยังเป็นสถานะ "ยังไม่อ่าน" ตามเดิม
+  const view = list.map((n) => ({ ...n, time: formatThaiDate(n.createdAt) }));
+
+  // 2) แล้วค่อยบันทึกว่าอ่านแล้ว (ครั้งหน้าที่เปิดจะเป็นสีปกติ)
+  let changed = false;
+  list.forEach((n) => {
+    if (!n.read) { n.read = true; changed = true; }
+  });
+  if (changed) saveNotifications();
+
+  // อัปเดตตัวเลขบนกระดิ่งให้หายไปทันทีในหน้านี้
+  res.locals.unreadCount = mine.filter((n) => !n.read).length;
+
+  res.render("user/notifications", {
+    title: "แจ้งเตือน",
+    active: "notifications",
+    list: view,
+    tab,
+  });
+});
+
+// กดที่แจ้งเตือน → ไปหน้ารายละเอียดคำร้องนั้น
+router.get("/notifications/:id", (req, res) => {
+  const n = notifications.find(
+    (x) => x.id === Number(req.params.id) && x.to === req.session.user.username
+  );
+  if (!n) return res.redirect("/user/notifications");
+
+  if (!n.read) { n.read = true; saveNotifications(); }
+  res.redirect(n.requestId ? `/user/requests/${n.requestId}` : "/user/notifications");
 });
 
 module.exports = router;

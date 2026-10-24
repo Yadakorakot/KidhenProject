@@ -73,19 +73,9 @@
               รูปภาพแนบ <span class="font-normal text-xs text-gray-400">(ไม่บังคับ สูงสุด 3 รูป รูปละไม่เกิน 5MB)</span>
             </label>
             <input id="images" name="images" type="file" accept="image/*" multiple
-                   class="text-xs file:mr-3 file:px-3 file:py-1 file:rounded file:border file:border-gray-500 file:bg-gray-100 file:text-xs hover:file:bg-gray-200">
+                  class="text-xs file:mr-3 file:px-3 file:py-1 file:rounded file:border file:border-gray-500 file:bg-gray-100 file:text-xs hover:file:bg-gray-200">
 
-            <div id="previews" class="flex gap-4 mt-3">
-              <% for (let i = 0; i < 3; i++) { %>
-                <div class="preview-box w-[100px] h-[100px] rounded bg-[#F3F4F6] flex items-center justify-center overflow-hidden">
-                  <svg width="56" height="44" viewBox="0 0 56 44" fill="none" stroke="#9CA3AF" stroke-width="3">
-                    <rect x="2" y="2" width="52" height="40" rx="3"/>
-                    <circle cx="16" cy="14" r="5" fill="#9CA3AF" stroke="none"/>
-                    <path d="M2 40l18-18 10 10 8-8 16 16" fill="#9CA3AF" stroke="none"/>
-                  </svg>
-                </div>
-              <% } %>
-            </div>
+            <div id="previews" class="flex gap-4 mt-3 h-[100px]"></div>
           </div>
 
           <!-- ปุ่ม -->
@@ -107,30 +97,43 @@
 </div>
 
 <script>
-  // แสดงตัวอย่างรูปที่เลือก
   const input = document.getElementById("images");
-  const boxes = document.querySelectorAll(".preview-box");
-  const placeholders = [...boxes].map((b) => b.innerHTML);
+  const previews = document.getElementById("previews");
+  const MAX_FILES = 3;
+  const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-  function resetPreviews() {
-    boxes.forEach((b, i) => (b.innerHTML = placeholders[i]));
+  function clearPreviews() {
+    previews.innerHTML = "";
   }
 
   input.addEventListener("change", () => {
+    clearPreviews();
     const files = [...input.files];
-    if (files.length > 3) {
+
+    if (files.length > MAX_FILES) {
       alert("แนบรูปได้สูงสุด 3 รูป");
       input.value = "";
-      return resetPreviews();
+      return;
     }
-    resetPreviews();
-    files.forEach((file, i) => {
-      boxes[i].innerHTML = `<img src="${URL.createObjectURL(file)}" class="w-full h-full object-cover">`;
+
+    if (files.some((f) => f.size > MAX_SIZE)) {
+      alert("มีรูปที่ขนาดเกิน 5MB กรุณาเลือกใหม่");
+      input.value = "";
+      return;
+    }
+
+    // สร้างรูปตัวอย่างตามจำนวนที่เลือก
+    files.forEach((file) => {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      img.alt = file.name;
+      img.className = "w-[100px] h-[100px] rounded-lg object-cover border border-gray-200";
+      previews.appendChild(img);
     });
   });
 
-  // กด ล้างข้อมูล → รูปตัวอย่างกลับเป็นช่องว่าง
-  document.getElementById("requestForm").addEventListener("reset", resetPreviews);
+  // กด ล้างข้อมูล → รูปตัวอย่างหายไปด้วย
+  document.getElementById("requestForm").addEventListener("reset", clearPreviews);
 </script>
 </body>
 </html>

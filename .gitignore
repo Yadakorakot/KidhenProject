@@ -10,3 +10,4 @@ build/
 *.sqlite-shm
 *.sqlite-wal
 frontend/public/uploads/
+backend/data/db/
