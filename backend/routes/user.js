@@ -8,6 +8,8 @@ const { faqs } = require("../data/mockFaqs");
 const { formatThaiDate, formatThaiShortDate } = require("../utils/date");
 const { notify } = require("../data/mockNotifications");
 const { users } = require("../data/mockUsers");
+const access = require("../service/faculty-access");
+
 
 // ---------- ตั้งค่าอัปโหลดรูป ----------
 const upload = multer({
@@ -22,9 +24,26 @@ const upload = multer({
   fileFilter: (req, file, cb) => cb(null, file.mimetype.startsWith("image/")),
 });
 
-// ทุกหน้าในไฟล์นี้ ต้องเป็น USER เท่านั้น
+// แก้: ตรวจทั้งบทบาทและคณะจากบัญชีจริงใน server
 router.use((req, res, next) => {
-  if (req.session.user?.role !== "USER") return res.redirect("/login");
+  if (
+    req.session.user?.role !== "USER"
+  ) {
+    return res.redirect("/login");
+  }
+
+  try {
+    res.locals.studentScope =
+      access.studentScope(
+        req.session.user.username
+      );
+  } catch (error) {
+    return res
+      .status(403)
+      .type("text")
+      .send(error.message);
+  }
+
   next();
 });
 
@@ -69,58 +88,84 @@ router.get("/home", (req, res) => {
   });
 });
 
-// ---------- หน้าแจ้งปัญหา ----------
-function renderNewForm(res, error = null, values = {}) {
-  res.render("user/request-new", {
+function renderNewForm(
+  res,
+  error = null,
+  values = {}
+) {
+  const studentScope = res.locals.studentScope;
+
+  return res.render("user/request-new", {
     title: "แจ้งปัญหา",
     active: "new",
     TYPES,
+    FACULTIES: studentScope.choices,
+    studentScope,
     error,
-    values,
+    values: {
+      facultyId: studentScope.faculty.id,
+      ...values,
+    },
   });
 }
 
 router.get("/requests/new", (req, res) => renderNewForm(res));
 
 router.post("/requests/new", (req, res) => {
-  upload.array("images", 3)(req, res, (err) => {
-    if (err) {
-      return renderNewForm(res, "อัปโหลดรูปไม่สำเร็จ: ต้องเป็นไฟล์รูป ไม่เกิน 3 รูป และรูปละไม่เกิน 5MB", req.body);
-    }
+    upload.array("images", 3)(req, res, error => {
+        if (error) {
+          removeUploads(req);
+          return renderNewForm(res, "อัปโหลดรูปไม่สำเร็จ: สูงสุด 3 รูป รูปละไม่เกิน 5MB", req.body);
+        }
 
-    const type = (req.body.type || "").trim();
-    const title = (req.body.title || "").trim();
-    const location = (req.body.location || "").trim();
-    const detail = (req.body.detail || "").trim();
+        const type = typeof req.body.type === "string" ? req.body.type.trim() : "";
+        const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+        const detail = typeof req.body.detail === "string" ? req.body.detail.trim() : "";
+        let locationInfo;
 
-    if (!TYPES.includes(type) || !title || !location || !detail) {
-      return renderNewForm(res, "กรุณากรอกข้อมูลให้ครบทุกช่อง (ถ้าไม่มีให้ใส่ -)", req.body);
-    }
+        try {
+          // เพิ่ม: ไม่ใช้ locations.fromForm โดยตรง
+          // เพราะต้องตรวจว่าคณะเป้าหมายอยู่ในสิทธิ์ด้วย
+          locationInfo = access.fromStudentForm(req.session.user.username, req.body);
+        } catch (error) {
+          removeUploads(req);
+          res.status(error.status || 400);
 
-    const nextId = Math.max(0, ...requests.map((r) => r.id)) + 1;
+          return renderNewForm(res, error.message, req.body);
+        }
 
-    requests.unshift({
-      id: nextId,
-      code: "#" + String(nextId).padStart(4, "0"),
-      title,
-      type,
-      location,
-      detail,
-      date: formatThaiShortDate(new Date()),
-      status: "รอดำเนินการ",
-      images: (req.files || []).map((f) => "/uploads/" + f.filename),
-      note: "",
-      owner: req.session.user.username,
-      history: [{ status: "รอดำเนินการ", at: new Date() }],
-    });
+        if (!TYPES.includes(type) || !title || title.length > 200 || !detail || detail.length > 5000) {
+          removeUploads(req);
+          return renderNewForm(res, "เลือกประเภท ระบุหัวข้อไม่เกิน 200 และรายละเอียดไม่เกิน 5000 ตัวอักษร", req.body);
+        }
 
-    saveRequests();
+        const nextId = Math.max(0, ...requests.map(request => request.id)) + 1;
 
-    notifyNewRequest(requests[0], req.session.user.name || req.session.user.username);
+        requests.unshift({
+          id: nextId,
+          code: "#" + String(nextId).padStart(4, "0"),
+          title,
+          type,
+          // แก้: สถานที่ผ่านการตรวจสิทธิ์แล้ว
+          location: locationInfo.label,
+          locationInfo,
+          detail,
+          createdAt: new Date().toISOString(),
+          date: formatThaiShortDate(new Date()),
+          status: "รอดำเนินการ",
+          images: (req.files || []).map(file => "/uploads/" + file.filename),
+          note: "",
+          owner: req.session.user.username,
+          history: [{status: "รอดำเนินการ", at: new Date(),},],
+        });
 
-    res.redirect("/user/home?sent=1");
-  });
-});
+        saveRequests();
+
+        res.redirect("/user/home?sent=1");
+      }
+    );
+  }
+);
 
 // ---------- หน้าสถานะคำร้องของฉัน ----------
 router.get("/requests", (req, res) => {
@@ -174,5 +219,14 @@ router.get("/requests/:id", (req, res) => {
     current,
   });
 });
+
+// เพิ่ม: ลบไฟล์ที่อัปโหลดมาเมื่อฟอร์มไม่ผ่าน
+function removeUploads(req) {
+  (req.files || []).forEach(file => {
+    fs.rmSync(file.path, {
+      force: true,
+    });
+  });
+}
 
 module.exports = router;

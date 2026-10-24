@@ -23,9 +23,21 @@ router.post("/signin", (req, res) => {
     return res.render("auth/signin", { error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
   }
 
-  req.session.user = { username: account.username, name: account.name, role: account.role };
-  res.redirect(HOME[account.role]);
-});
+  // เพิ่ม: เปลี่ยน session หลัง login
+    req.session.regenerate(error => {
+      if (error) { return next(error); }
+
+      // คณะจะถูกอ่านจาก users โดย middleware
+      req.session.user = { username: account.username, name: account.name, role: account.role };
+      
+      req.session.save(error => {
+        if (error) { return next(error); }
+        res.redirect(HOME[account.role]);
+      });
+    });
+  }
+);
+  
 
 router.get("/logout", (req, res) => {
   req.session.destroy(() => res.redirect("/login"));
@@ -33,22 +45,22 @@ router.get("/logout", (req, res) => {
 
 // ---------- ทางลัดทดสอบ (ลบออกเมื่อต่อ Google Login จริง) ----------
 
-// เข้าเป็น Admin
-router.get("/demo-admin", (req, res) => {
-  req.session.user = { username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN" };
-  res.redirect(HOME.ADMIN);
-});
+// // เข้าเป็น Admin
+// router.get("/demo-admin", (req, res) => {
+//   req.session.user = { username: "admin", name: "ผู้ดูแลระบบ", role: "ADMIN" };
+//   res.redirect(HOME.ADMIN);
+// });
 
-// เข้าเป็น Staff
-router.get("/demo-staff", (req, res) => {
-  req.session.user = { username: "staff", name: "สมชาย ใจดี", role: "STAFF" };
-  res.redirect(HOME.STAFF);
-});
+// // เข้าเป็น Staff
+// router.get("/demo-staff", (req, res) => {
+//   req.session.user = { username: "staff", name: "สมชาย ใจดี", role: "STAFF" };
+//   res.redirect(HOME.STAFF);
+// });
 
-// เข้าเป็น User
-router.get("/demo-user", (req, res) => {
-  req.session.user = { username: "user", name: "สมหญิง เรียนดี", role: "USER" };
-  res.redirect(HOME.USER);
-});
+// // เข้าเป็น User
+// router.get("/demo-user", (req, res) => {
+//   req.session.user = { username: "user", name: "สมหญิง เรียนดี", role: "USER" };
+//   res.redirect(HOME.USER);
+// });
 
 module.exports = router;
