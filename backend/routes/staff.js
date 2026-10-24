@@ -15,6 +15,9 @@ const { notify } = require("../data/mockNotifications");
 
 // เพิ่ม: อ่านคณะจากข้อมูลสถานที่ของคำร้อง
 const locations = require("../service/location");
+const {
+  buildDashboardData,
+} = require("../utils/dashboard");
 
 // เพิ่ม: จัดข้อความให้พร้อมใช้งาน
 function clean(value) {
@@ -190,26 +193,12 @@ router.get("/dashboard", (req, res) => {
     canAccess(res.locals.staffFaculty, request)
   );
 
-  res.render("staff/dashboard", {
+  res.render("dashboard", {
     title: "Dashboard",
     active: "dashboard",
-
-    stats: {
-      total: list.length,
-
-      pending: list.filter(
-        request => request.status === "รอดำเนินการ"
-      ).length,
-
-      inProgress: list.filter(
-        request =>
-          request.status === "กำลังดำเนินการ"
-      ).length,
-
-      done: list.filter(
-        request => request.status === "เสร็จสิ้น"
-      ).length,
-    },
+    base: "/staff",
+    role: "staff",
+    ...buildDashboardData(list),
   });
 });
 

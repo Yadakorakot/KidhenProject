@@ -219,36 +219,6 @@ function read() {
   return data;
 }
 
-// รอบถัดไป: วันอาทิตย์ 23:00 เวลาไทย
-function nextWeekly(date = new Date()) {
-  const thai = new Date(
-    date.getTime() + 7 * 3600000
-  );
-
-  let target = Date.UTC(
-    thai.getUTCFullYear(),
-    thai.getUTCMonth(),
-    thai.getUTCDate() +
-      (7 - thai.getUTCDay()) % 7,
-    16
-  );
-
-  if (target <= date.getTime()) {
-    target += 7 * 86400000;
-  }
-
-  return new Date(target).toISOString();
-}
-
-function initializeSchedule() {
-  const data = read();
-
-  if (!data.nextRunAt) {
-    data.nextRunAt = nextWeekly();
-    write(data);
-  }
-}
-
 // คง: ส่งเฉพาะชื่ออาการที่กำหนดไว้ ไม่ส่งรายละเอียดต้นฉบับ
 const RULES = [
   ["กระจกชำรุด", /กระจก/, /แตก|ร้าว|ชำรุด/],
@@ -954,6 +924,4 @@ module.exports = {
   setPublished,
   support,
   updateLocation,
-  nextWeekly,
-  initializeSchedule,
 };

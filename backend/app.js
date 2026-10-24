@@ -21,6 +21,8 @@ const { notifications } = require("./data/mockNotifications");
 
 const app = express();
 
+app.use("/internal/ai", require("./routes/ai-job"));
+
 // ตั้งค่า EJS
 app.set("view engine", "ejs");
 app.set(
@@ -82,5 +84,6 @@ app.use("/staff", staffRoutes);
 app.use("/profile", profileRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/user", userRoutes);
+
 
 module.exports = app;

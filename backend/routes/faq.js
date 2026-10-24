@@ -118,11 +118,9 @@ router.get("/", (req, res) => {
     list,
     filters,
     TYPES,
-
-    enabled:
-      process.env
-        .AI_WEEKLY_ENABLED !==
-      "false",
+    eventBridgeConfigured: Boolean(
+      process.env.EVENTBRIDGE_API_KEY?.trim()
+    ),
   });
 });
 

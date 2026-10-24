@@ -1,58 +1,136 @@
-const { requests, TYPES, STATUSES } = require("../data/mockRequests");
+const {
+  requests,
+  TYPES,
+  STATUSES,
+} = require("../data/mockRequests");
+
 const { users } = require("../data/mockUsers");
 const { faqs } = require("../data/mockFaqs");
 
-// เวลาที่ยื่นคำร้อง = รายการแรกในประวัติ
-function createdAt(r) {
-  return new Date(r.history?.[0]?.at || 0);
+// ของเดิม: เวลาที่ยื่นคำร้องจากรายการแรกในประวัติ
+function createdAt(request) {
+  return new Date(
+    request.history?.[0]?.at || 0
+  );
 }
 
 function percent(value, max) {
-  return max ? Math.round((value / max) * 100) : 0;
+  return max
+    ? Math.round((value / max) * 100)
+    : 0;
 }
 
-function buildDashboardData() {
-  const total = requests.length;
+// แก้: รับรายการที่ backend กรองสิทธิ์แล้ว
+// Admin ไม่ส่ง argument จะใช้คำร้องทั้งหมด
+// Staff ส่งเฉพาะรายการของคณะตัวเอง
+function buildDashboardData(list = requests) {
+  const total = list.length;
 
-  // แยกตามสถานะ
-  const byStatus = STATUSES.map((s) => {
-    const count = requests.filter((r) => r.status === s).length;
-    return { status: s, count, pct: percent(count, total) };
-  });
-  const doneCount = byStatus.find((s) => s.status === "เสร็จสิ้น")?.count || 0;
+  // แก้: คำนวณสถานะจาก list เท่านั้น
+  const byStatus = STATUSES.map(status => {
+    const count = list.filter(
+      request => request.status === status
+    ).length;
 
-  // แยกตามประเภท
-  const typeCounts = TYPES.map((t) => ({ type: t, count: requests.filter((r) => r.type === t).length }));
-  const maxType = Math.max(1, ...typeCounts.map((t) => t.count));
-  const byType = typeCounts.map((t) => ({ ...t, pct: percent(t.count, maxType) }));
-
-  // คำร้องใหม่ 7 วันล่าสุด
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayCounts = [...Array(7)].map((_, i) => {
-    const start = new Date(today);
-    start.setDate(today.getDate() - (6 - i));
-    const end = new Date(start);
-    end.setDate(start.getDate() + 1);
     return {
-      label: `${start.getDate()}/${start.getMonth() + 1}`,
-      count: requests.filter((r) => createdAt(r) >= start && createdAt(r) < end).length,
+      status,
+      count,
+      pct: percent(count, total),
     };
   });
-  const maxDay = Math.max(1, ...dayCounts.map((d) => d.count));
-  const last7 = dayCounts.map((d) => ({ ...d, pct: percent(d.count, maxDay) }));
+
+  const doneCount =
+    byStatus.find(
+      item => item.status === "เสร็จสิ้น"
+    )?.count || 0;
+
+  // แก้: กราฟประเภทคำร้องใช้ข้อมูลในสิทธิ์เดียวกัน
+  const typeCounts = TYPES.map(type => ({
+    type,
+
+    count: list.filter(
+      request => request.type === type
+    ).length,
+  }));
+
+  const maxType = Math.max(
+    1,
+    ...typeCounts.map(item => item.count)
+  );
+
+  const byType = typeCounts.map(item => ({
+    ...item,
+    pct: percent(item.count, maxType),
+  }));
+
+  // ของเดิม: ช่วง 7 วันล่าสุดตาม timezone ของ server
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dayCounts = Array.from(
+    { length: 7 },
+    (_, index) => {
+      const start = new Date(today);
+
+      start.setDate(
+        today.getDate() - (6 - index)
+      );
+
+      const end = new Date(start);
+      end.setDate(start.getDate() + 1);
+
+      return {
+        label:
+          `${start.getDate()}/` +
+          `${start.getMonth() + 1}`,
+
+        // แก้: นับเฉพาะคำร้องที่ได้รับอนุญาต
+        count: list.filter(request => {
+          const date = createdAt(request);
+
+          return date >= start && date < end;
+        }).length,
+      };
+    }
+  );
+
+  const maxDay = Math.max(
+    1,
+    ...dayCounts.map(item => item.count)
+  );
+
+  const last7 = dayCounts.map(item => ({
+    ...item,
+    pct: percent(item.count, maxDay),
+  }));
 
   return {
     total,
     byStatus,
     byType,
     last7,
-    newThisWeek: dayCounts.reduce((sum, d) => sum + d.count, 0),
+
+    newThisWeek: dayCounts.reduce(
+      (sum, item) => sum + item.count,
+      0
+    ),
+
     doneRate: percent(doneCount, total),
+
+    // คง: สองค่านี้ใช้เฉพาะการ์ดของ Admin ใน EJS
     userCount: users.length,
-    pendingFaq: faqs.filter((f) => f.status === "รอตรวจสอบ").length,
-    latest: requests.slice(0, 6), // คำร้องใหม่อยู่บนสุดอยู่แล้ว
+
+    // คงไว้ก่อน: ยังเป็นตัวเลขจาก FAQ เก่า
+    // ต้องเปลี่ยนเป็นข้อมูลจริงเมื่อปรับการ์ด AI
+    pendingFaq: faqs.filter(
+      item => item.status === "รอตรวจสอบ"
+    ).length,
+
+    // แก้: คำร้องล่าสุดต้องมาจาก list ที่กรองแล้วด้วย
+    latest: list.slice(0, 6),
   };
 }
 
-module.exports = { buildDashboardData };
+module.exports = {
+  buildDashboardData,
+};
