@@ -1,0 +1,248 @@
+// แก้: ไม่มี prepare/approve แล้ว
+// Admin ดูผล แก้สรุป และซ่อนย้อนหลังได้
+
+const router =
+  require("express").Router();
+
+const {
+  randomUUID,
+} = require("node:crypto");
+
+const issues = require(
+  "../service/issues"
+);
+
+const {
+  TYPES,
+} = require("../data/mockRequests");
+
+// เพิ่ม: แสดงเวลาไทยแม้ server อยู่ต่างประเทศ
+const formatThaiDate = (date) =>
+  new Date(date).toLocaleString(
+    "th-TH",
+    {
+      timeZone: "Asia/Bangkok",
+    }
+  );
+
+// ของเดิม: ตรวจสิทธิ์ที่ backend
+router.use((req, res, next) => {
+  if (!req.session.user) {
+    return res.redirect("/login");
+  }
+
+  if (
+    req.session.user.role !==
+      "ADMIN"
+  ) {
+    return res.sendStatus(403);
+  }
+
+  req.session.aiCsrf ||=
+    randomUUID();
+
+  if (
+    req.method !== "GET" &&
+    req.body._csrf !==
+      req.session.aiCsrf
+  ) {
+    return res.sendStatus(403);
+  }
+
+  Object.assign(res.locals, {
+    title:
+      "จัดการปัญหาที่พบบ่อย",
+
+    active: "faq",
+
+    aiCsrf:
+      req.session.aiCsrf,
+
+    flash:
+      req.session.faqFlash ||
+      null,
+
+    formatThaiDate,
+  });
+
+  delete req.session.faqFlash;
+
+  next();
+});
+
+// แก้: แสดงหัวข้อจริง ไม่แสดงร่างรออนุมัติ
+router.get("/", (req, res) => {
+  const filters =
+    Object.fromEntries(
+      ["q", "type", "status"].map(
+        (key) => [
+          key,
+
+          typeof req.query[key] ===
+            "string"
+            ? req.query[key]
+            : "",
+        ]
+      )
+    );
+
+  const data =
+    issues.dashboard();
+
+  const list =
+    data.topics.filter(
+      (topic) =>
+        (
+          !filters.q ||
+          topic.title.includes(
+            filters.q.trim()
+          )
+        ) &&
+        (
+          !filters.type ||
+          topic.type ===
+            filters.type
+        ) &&
+        (
+          !filters.status ||
+          (
+            topic.published
+              ? "published"
+              : "hidden"
+          ) === filters.status
+        )
+    );
+
+  res.render("admin/faq", {
+    ...data,
+    list,
+    filters,
+    TYPES,
+
+    enabled:
+      process.env
+        .AI_WEEKLY_ENABLED !==
+      "false",
+  });
+});
+
+// เพิ่ม: ใช้ engine เดียวกับ scheduler
+// เริ่มงานแล้วกลับหน้ารายการ ไม่ให้ browser รอหลาย API calls
+router.post("/run", (req, res) => {
+  if (
+    issues.dashboard().running
+  ) {
+    req.session.faqFlash = {
+      error: true,
+      text:
+        "กำลังประมวลผลอยู่",
+    };
+  } else {
+    issues
+      .runBatch()
+      .catch((error) => {
+        console.error(
+          "[AI]",
+          error.message
+        );
+      });
+
+    req.session.faqFlash = {
+      error: false,
+
+      text:
+        "เริ่มประมวลผลแล้ว กดรีเฟรชเพื่อตรวจผล",
+    };
+  }
+
+  res.redirect("/admin/faq");
+});
+
+// แก้: ดูหัวข้อและคำร้องที่เกี่ยวข้อง
+router.get(
+  "/topics/:id",
+  (req, res) => {
+    try {
+      res.render(
+        "admin/faq-detail",
+        issues.detail(
+          req.params.id
+        )
+      );
+    } catch {
+      res
+        .status(404)
+        .type("text")
+        .send("ไม่พบหัวข้อ");
+    }
+  }
+);
+
+// เพิ่ม: ลดโค้ดจัดการผล POST ซ้ำ
+function action(fn) {
+  return (req, res) => {
+    try {
+      fn(req);
+
+      req.session.faqFlash = {
+        error: false,
+        text: "บันทึกแล้ว",
+      };
+    } catch (error) {
+      req.session.faqFlash = {
+        error: true,
+        text: error.message,
+      };
+    }
+
+    res.redirect("/admin/faq");
+  };
+}
+
+// เพิ่ม: แก้ข้อความย้อนหลัง
+router.post(
+  "/topics/:id/save",
+
+  action((req) =>
+    issues.editTopic(
+      req.params.id,
+      req.body
+    )
+  )
+);
+
+// เพิ่ม: ซ่อน/เผยแพร่ ไม่ลบประวัติ
+router.post(
+  "/topics/:id/visibility",
+
+  action((req) => {
+    if (
+      !["true", "false"].includes(
+        req.body.published
+      )
+    ) {
+      throw new Error(
+        "ค่าการเผยแพร่ไม่ถูกต้อง"
+      );
+    }
+
+    issues.setPublished(
+      req.params.id,
+
+      req.body.published ===
+        "true"
+    );
+  })
+);
+
+// เพิ่ม: ไม่ปล่อย URL รุ่นเก่าไปเข้า FAQ routes เดิม
+router.use((req, res) => {
+  res
+    .status(404)
+    .type("text")
+    .send(
+      "ไม่พบหน้าจัดการสรุป"
+    );
+});
+
+module.exports = router;

@@ -1,3 +1,6 @@
+// แก้: app.js ตั้งค่าเว็บอย่างเดียว
+// ย้ายการเปิดพอร์ตไป server.js
+
 const express = require("express");
 const session = require("express-session");
 const path = require("path");
@@ -7,32 +10,77 @@ const adminRoutes = require("./routes/admin");
 const staffRoutes = require("./routes/staff");
 const userRoutes = require("./routes/user");
 const profileRoutes = require("./routes/profile");
-const { users } = require("./data/mockUsers");
+const notificationRoutes = require("./routes/notifications");
 
+const faqRoutes = require("./routes/faq");
+
+const issueRoutes = require("./routes/ai");
+
+const { users } = require("./data/mockUsers");
 const { notifications } = require("./data/mockNotifications");
 
 const app = express();
 
+// ตั้งค่า EJS
 app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "../frontend/views"));
+app.set(
+  "views",
+  path.join(__dirname, "../frontend/views")
+);
 
-app.use(express.static(path.join(__dirname, "../frontend/public")));
+// ไฟล์ CSS, รูป และ JavaScript
+app.use(
+  express.static(
+    path.join(__dirname, "../frontend/public")
+  )
+);
+
+// ของเดิม: อ่านข้อมูลจาก HTML form
 app.use(express.urlencoded({ extended: true }));
-app.use(session({ secret: "kidhen-dev-secret", resave: false, saveUninitialized: false }));
 
-// ทุกหน้า: ส่งจำนวนแจ้งเตือนที่ยังไม่อ่านไปให้แถบด้านบน
+// แก้: รองรับ SESSION_SECRET จาก .env
+app.use(
+  session({
+    secret:
+      process.env.SESSION_SECRET ||
+      "kidhen-dev-secret",
+
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+
+// ของเดิม: ข้อมูลสำหรับ topbar และ sidebar
 app.use((req, res, next) => {
-  res.locals.currentUser = req.session.user || null;
-  res.locals.currentAvatar = users.find((u) => u.username === req.session.user?.username)?.avatar || "";
   const username = req.session.user?.username;
-  res.locals.unreadCount = notifications.filter((n) => n.to === username && !n.read).length;
+
+  res.locals.currentUser =
+    req.session.user || null;
+
+  res.locals.currentAvatar =
+    users.find(
+      (user) => user.username === username
+    )?.avatar || "";
+
+  res.locals.unreadCount =
+    notifications.filter(
+      (notification) =>
+        notification.to === username &&
+        !notification.read
+    ).length;
+
   next();
 });
+
+app.use("/admin/faq", faqRoutes);
+
+app.use("/user/issues", issueRoutes);
 
 app.use("/", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/staff", staffRoutes);
 app.use("/profile", profileRoutes);
+app.use("/notifications", notificationRoutes);
 app.use("/user", userRoutes);
 
-app.listen(3000, () => console.log("เปิดเว็บที่   "));
+module.exports = app;

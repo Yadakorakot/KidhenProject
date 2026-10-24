@@ -2,98 +2,234 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
   <title>KIDHEN | <%= title %></title>
   <link rel="stylesheet" href="/css/output.css">
 </head>
+
 <body class="bg-[#EEEDEA]">
 
-<%
-  const FAQ_STATUS_STYLE = {
-    "เผยแพร่แล้ว": "bg-[#E3FBD2] text-[#3A8A12]",
-    "รอตรวจสอบ":  "bg-[#FFE9D6] text-[#E07B12]",
-  };
-%>
-
+<!-- แก้: ไม่มีช่องเตรียมข้อความและไม่มีร่างรออนุมัติ -->
 <div class="flex min-h-screen">
   <%- include("../partials/sidebar-admin") %>
 
-  <main class="flex-1">
+  <main class="flex-1 min-w-0">
     <%- include("../partials/topbar") %>
 
     <section class="p-4 flex flex-col gap-4">
 
-      <!-- ค้นหา + ตัวกรอง -->
-      <form method="GET" action="/admin/faq" class="flex flex-wrap items-center gap-4">
-        <input type="text" name="q" value="<%= filters.q %>" placeholder="ค้นหาคำถาม..."
-               class="w-full md:w-[390px] h-11 px-5 rounded-lg border border-gray-400 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#1F2A8A]">
+      <% if (flash) { %>
+        <p role="status"
+           class="p-4 bg-white rounded-lg
+           <%= flash.error
+             ? 'text-red-600'
+             : 'text-green-700' %>">
+          <%= flash.text %>
+        </p>
+      <% } %>
 
-        <div class="flex gap-4 md:ml-auto">
-          <select name="type" onchange="this.form.submit()"
-                  class="h-11 w-[170px] px-4 rounded-lg border border-gray-400 bg-white text-sm">
-            <option value="">ทุกประเภท</option>
-            <% TYPES.forEach(t => { %>
-              <option value="<%= t %>" <%= filters.type === t ? "selected" : "" %>><%= t %></option>
-            <% }) %>
-          </select>
+      <!-- เพิ่ม: สถานะ scheduler และรอบล่าสุด -->
+      <div class="bg-white rounded-xl p-5">
+        <h2 class="font-bold text-[#1F2A8A] text-xl">
+          สรุปปัญหาอัตโนมัติรายสัปดาห์
+        </h2>
 
-          <select name="status" onchange="this.form.submit()"
-                  class="h-11 w-[170px] px-4 rounded-lg border border-gray-400 bg-white text-sm">
-            <option value="">เผยแพร่ทั้งหมด</option>
-            <% FAQ_STATUSES.forEach(s => { %>
-              <option value="<%= s %>" <%= filters.status === s ? "selected" : "" %>><%= s %></option>
-            <% }) %>
-          </select>
-        </div>
+        <p class="mt-2 text-sm">
+          จัดกลุ่มเพื่อแสดงภาพรวม
+          ไม่รวมงานหรือปิดคำร้องอัตโนมัติ
+        </p>
+
+        <p class="mt-2 text-sm">
+          รอบถัดไป:
+          <%= enabled && nextRunAt
+            ? formatThaiDate(nextRunAt)
+            : "ปิดการตั้งเวลา" %>
+          (เวลาไทย)
+        </p>
+
+        <p class="mt-2 text-sm">
+          สถานะ:
+          <%= running
+            ? "กำลังประมวลผล — กดรีเฟรชเพื่อตรวจผล"
+            : "พร้อมทำงาน" %>
+        </p>
+
+        <% if (lastRun) { %>
+          <p class="mt-2 text-sm">
+            รอบล่าสุด:
+            <%= formatThaiDate(lastRun.finishedAt) %>
+            · <%= lastRun.success
+              ? "สำเร็จ" : "ไม่สำเร็จ" %>
+            · ประมวลผล
+            <%= lastRun.processed %> คำร้อง
+            · เก็บภายในเพิ่ม
+            <%= lastRun.heldCount %> คำร้อง
+          </p>
+
+          <% if (!lastRun.success) { %>
+            <p class="mt-2 text-red-600">
+              <%= lastRun.error %>
+            </p>
+          <% } %>
+        <% } %>
+
+        <form method="POST"
+              action="/admin/faq/run"
+              class="mt-4">
+          <input type="hidden"
+                 name="_csrf"
+                 value="<%= aiCsrf %>">
+
+          <button
+            <%= running ? "disabled" : "" %>
+            class="bg-[#F6A85A] rounded-full
+                   px-6 py-2 font-semibold
+                   disabled:opacity-50">
+            ประมวลผลตอนนี้
+          </button>
+        </form>
+
+        <p class="mt-2 text-xs text-gray-500">
+          ปุ่มนี้เรียก Gemini จริง เฉพาะข้อมูลใหม่/เปลี่ยน
+          และไม่เปลี่ยนวันเวลารอบประจำ
+        </p>
+      </div>
+
+      <!-- ของเดิม: ค้นหาและกรอง -->
+      <form method="GET"
+            action="/admin/faq"
+            class="flex flex-wrap gap-3">
+
+        <input name="q"
+               value="<%= filters.q %>"
+               placeholder="ค้นหาหัวข้อ"
+               class="bg-white border rounded-lg p-3">
+
+        <select name="type"
+                class="bg-white border rounded-lg p-3">
+          <option value="">ทุกประเภท</option>
+
+          <% TYPES.forEach(t => { %>
+            <option
+              <%= filters.type === t
+                ? "selected" : "" %>
+            ><%= t %></option>
+          <% }) %>
+        </select>
+
+        <select name="status"
+                class="bg-white border rounded-lg p-3">
+
+          <option value="">
+            ทุกสถานะการเผยแพร่
+          </option>
+
+          <option value="published"
+            <%= filters.status === "published"
+              ? "selected" : "" %>>
+            เผยแพร่แล้ว
+          </option>
+
+          <option value="hidden"
+            <%= filters.status === "hidden"
+              ? "selected" : "" %>>
+            ซ่อนอยู่
+          </option>
+        </select>
+
+        <button class="bg-[#1F2A8A] text-white
+                       rounded-lg px-5">
+          ค้นหา
+        </button>
       </form>
 
-      <!-- ตาราง -->
-      <div class="bg-white p-5 min-h-[640px] overflow-x-auto">
+      <!-- แก้: แสดงจำนวนงานแต่ละสถานะแยกกัน -->
+      <div class="bg-white rounded-xl p-5 overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-gray-500 border-b border-gray-200">
-              <th class="text-left py-4 px-4 font-medium border-r border-gray-200 w-[45%]">คำถาม</th>
-              <th class="text-left py-4 px-4 font-medium border-r border-gray-200 w-[22%]">อัพเดตล่าสุด</th>
-              <th class="py-4 px-4 font-medium border-r border-gray-200 w-[15%]">สถานะ</th>
-              <th class="py-4 px-4 font-medium w-[18%]">จัดการ</th>
+            <tr class="border-b text-left text-gray-500">
+              <th class="p-3">หัวข้อ</th>
+              <th class="p-3">สถานะคำร้อง</th>
+              <th class="p-3">การเผยแพร่</th>
+              <th class="p-3">จัดการ</th>
             </tr>
           </thead>
+
           <tbody>
-            <% if (list.length === 0) { %>
+            <% if (!list.length) { %>
               <tr>
-                <td colspan="4" class="py-10 text-center text-gray-400">ไม่พบข้อมูล</td>
+                <td colspan="4"
+                    class="p-10 text-center text-gray-500">
+                  ยังไม่มีสรุป
+                  กดประมวลผลตอนนี้เพื่อทดสอบ
+                </td>
               </tr>
             <% } %>
 
-            <% list.forEach(f => { %>
-              <tr class="border-b border-gray-200 hover:bg-[#EAF1FB]">
-                <td class="py-3 px-4 border-r border-gray-200 font-semibold"><%= f.title %></td>
-                <td class="py-3 px-4 border-r border-gray-200 text-xs text-gray-500"><%= formatThaiDate(f.updatedAt) %></td>
-                <td class="py-3 px-4 border-r border-gray-200 text-center">
-                  <span class="inline-block px-4 py-0.5 rounded-full text-xs whitespace-nowrap <%= FAQ_STATUS_STYLE[f.status] %>">
-                    <%= f.status %>
-                  </span>
+            <% list.forEach(t => { %>
+              <tr class="border-b">
+                <td class="p-3">
+                  <p class="font-semibold">
+                    <%= t.title %>
+                  </p>
+
+                  <p class="text-xs text-gray-500 mt-2">
+                    <%= t.type %>
+                    · <%= t.location %>
+                    · <%= t.people %> คน
+                    / <%= t.count %> คำร้อง
+                  </p>
                 </td>
-                <td class="py-3 px-4">
-                  <div class="flex items-center justify-center gap-3">
-                    <a href="/admin/faq/<%= f.id %>"
-                       class="px-4 py-0.5 rounded-md border border-gray-500 bg-white text-xs font-semibold hover:bg-gray-100">
-                      แก้ไข
-                    </a>
-                    <form method="POST" action="/admin/faq/<%= f.id %>/delete"
-                          onsubmit="return confirm('ต้องการลบ &quot;<%= f.title %>&quot; ใช่หรือไม่?')">
-                      <button type="submit"
-                              class="px-5 py-0.5 rounded-md bg-[#FDDCDC] text-[#E01E1E] text-xs font-semibold hover:bg-[#FBC6C6]">
-                        ลบ
-                      </button>
-                    </form>
-                  </div>
+
+                <td class="p-3">
+                  รอ <%= t.counts["รอดำเนินการ"] %>
+                  · กำลังทำ
+                  <%= t.counts["กำลังดำเนินการ"] %>
+                  · เสร็จ
+                  <%= t.counts["เสร็จสิ้น"] %>
+                </td>
+
+                <td class="p-3">
+                  <%= t.published
+                    ? "เผยแพร่แล้ว" : "ซ่อนอยู่" %>
+                </td>
+
+                <td class="p-3">
+                  <a class="text-[#1F2A8A] underline"
+                     href="/admin/faq/topics/<%= t.id %>">
+                    ดูและแก้ไข
+                  </a>
                 </td>
               </tr>
             <% }) %>
           </tbody>
         </table>
       </div>
+
+      <!-- เพิ่ม: คำร้องภายในยังไม่หายและดำเนินการได้ตามปกติ -->
+      <details class="bg-white p-5 rounded-xl">
+        <summary class="cursor-pointer font-semibold">
+          คำร้องที่เก็บภายใน
+          <%= held.length %> รายการ
+        </summary>
+
+        <p class="text-sm text-gray-500 mt-3">
+          พบข้อมูลละเอียดอ่อน/เรื่องบุคคล
+          หรือยังไม่มีอาการที่ระบบรองรับ
+          คำร้องยังดำเนินการตามปกติ ไม่ได้ถูกปฏิเสธ
+        </p>
+
+        <% held.forEach(r => { %>
+          <p class="mt-3">
+            <a class="underline"
+               href="/admin/requests/<%= r.id %>">
+              <%= r.code %> — <%= r.title %>
+            </a>
+          </p>
+        <% }) %>
+      </details>
 
     </section>
   </main>

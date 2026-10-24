@@ -2,104 +2,133 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
   <title>KIDHEN | <%= title %></title>
   <link rel="stylesheet" href="/css/output.css">
 </head>
+
 <body class="bg-[#EEEDEA]">
+
+<!-- แก้: ไม่แสดง FAQ mock เก่าที่ไม่สัมพันธ์กับ AI -->
 <div class="flex min-h-screen">
   <%- include("../partials/sidebar-user") %>
 
-  <main class="flex-1">
+  <main class="flex-1 min-w-0">
     <%- include("../partials/topbar") %>
 
     <section class="p-6 flex flex-col gap-6">
+
       <% if (sent) { %>
-        <div class="bg-[#E3FBD2] border border-[#8BDA5B] text-[#3A8A12] rounded-xl px-5 py-3 text-sm">
-          ✓ ส่งคำร้องเรียบร้อยแล้ว เจ้าหน้าที่จะตรวจสอบให้เร็วที่สุด
-        </div>
+        <p class="bg-[#E3FBD2] text-[#3A8A12]
+                  rounded-xl p-4">
+          ส่งคำร้องเรียบร้อยแล้ว
+          เจ้าหน้าที่จะตรวจสอบให้เร็วที่สุด
+        </p>
       <% } %>
 
-      <!-- การ์ดสรุป 4 ใบ -->
+      <!-- ของเดิม: สถิติคำร้องของผู้ใช้ -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <%
           const cards = [
-            { label: "คำร้องทั้งหมด",   value: stats.total,      color: "text-[#1F2A8A]" },
-            { label: "รอดำเนินการ",     value: stats.pending,    color: "text-[#1F4FB5]" },
-            { label: "กำลังดำเนินการ",  value: stats.inProgress, color: "text-[#E07B12]" },
-            { label: "เสร็จสิ้น",        value: stats.done,       color: "text-[#3A8A12]" },
+            ["คำร้องทั้งหมด", stats.total],
+            ["รอดำเนินการ", stats.pending],
+            ["กำลังดำเนินการ", stats.inProgress],
+            ["เสร็จสิ้น", stats.done]
           ];
         %>
-        <% cards.forEach(c => { %>
-          <div class="h-[140px] bg-white rounded-3xl p-5 flex flex-col justify-between">
-            <p class="text-sm text-gray-500"><%= c.label %></p>
-            <p class="text-4xl font-bold <%= c.color %>"><%= c.value %></p>
+
+        <% cards.forEach(([label, value]) => { %>
+          <div class="bg-white rounded-3xl p-5">
+            <p class="text-gray-500 text-sm">
+              <%= label %>
+            </p>
+
+            <p class="mt-5 text-4xl font-bold
+                      text-[#1F2A8A]">
+              <%= value %>
+            </p>
           </div>
         <% }) %>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- คอลัมน์ซ้าย -->
         <div class="flex flex-col gap-6">
 
-          <!-- แจ้งปัญหา -->
-          <div class="bg-white rounded-3xl p-8 flex items-center gap-6">
-            <div class="flex-1">
-              <h2 class="text-2xl font-bold text-[#F6A85A]">แจ้งปัญหา</h2>
-              <p class="text-sm text-[#F6A85A] mt-1">
-                พบปัญหาการใช้งานหรือต้องการความช่วยเหลือ? ส่งรายละเอียดให้เราตรวจสอบได้เลย
-              </p>
-              <a href="/user/requests/new"
-                 class="inline-block mt-4 px-10 py-2 rounded-lg border border-black bg-[#F6A85A] font-bold text-lg hover:bg-[#F39A3E]">
-                ส่งคำร้อง
-              </a>
-              <p class="text-xs text-gray-600 mt-3">ทางเราจะตรวจสอบคำร้องของคุณให้เร็วที่สุด</p>
-            </div>
-            <img src="/img/girl-logo.svg" alt="" class="hidden md:block w-[170px] h-auto">
+          <div class="bg-white rounded-3xl p-8">
+            <h2 class="text-2xl font-bold text-[#F6A85A]">
+              แจ้งปัญหา
+            </h2>
+
+            <p class="mt-3 text-sm">
+              ตรวจหัวข้อที่มีผู้แจ้งแล้ว
+              หรือส่งคำร้องใหม่พร้อมรายละเอียด
+            </p>
+
+            <a href="/user/requests/new"
+               class="inline-block mt-5 rounded-lg
+                      bg-[#F6A85A] px-6 py-3 font-semibold">
+              ส่งคำร้องใหม่
+            </a>
           </div>
 
-          <!-- ปัญหาที่พบบ่อย -->
-          <div class="bg-white rounded-3xl p-8 flex-1">
-            <h2 class="text-2xl font-bold text-[#F6A85A] mb-4">ปัญหาที่พบบ่อย</h2>
-            <div class="border border-gray-200 rounded-2xl p-5 min-h-[220px]">
-              <% if (faqs.length === 0) { %>
-                <p class="text-sm text-gray-400">ยังไม่มีข้อมูล</p>
-              <% } %>
-              <% faqs.forEach(f => { %>
-                <div class="py-3 border-b-2 border-gray-200 last:border-0">
-                  <p class="font-semibold text-sm"><%= f.title %></p>
-                  <p class="text-xs text-gray-600 mt-1"><%= f.answer %></p>
-                </div>
-              <% }) %>
-            </div>
+          <!-- แก้: ลิงก์ไปสรุปจากข้อมูลจริง -->
+          <div class="bg-white rounded-3xl p-8">
+            <h2 class="text-2xl font-bold text-[#F6A85A]">
+              ปัญหาที่ถูกรายงานแล้ว
+            </h2>
+
+            <p class="mt-3 text-sm">
+              ดูสรุปจากคำร้องจริง
+              และแจ้งว่าคุณพบปัญหาเดียวกันได้
+            </p>
+
+            <a href="/user/issues"
+               class="inline-block mt-5 rounded-lg
+                      bg-[#1F2A8A] text-white px-6 py-3">
+              ดูปัญหาที่ถูกรายงานแล้ว
+            </a>
           </div>
+
         </div>
 
-        <!-- คอลัมน์ขวา: สถานะคำร้องของฉัน -->
-        <div class="bg-white rounded-3xl p-8 min-h-[520px]">
-          <h2 class="text-2xl font-bold text-[#F6A85A] mb-4">สถานะคำร้องของฉัน</h2>
+        <div class="bg-white rounded-3xl p-8">
+          <h2 class="text-2xl font-bold text-[#F6A85A]">
+            คำร้องของฉัน
+          </h2>
 
-          <% if (myRequests.length === 0) { %>
-            <p class="text-sm text-gray-400">ยังไม่มีคำร้อง</p>
+          <% if (!myRequests.length) { %>
+            <p class="mt-4 text-gray-500">
+              ยังไม่มีคำร้อง
+            </p>
           <% } %>
 
-          <% myRequests.forEach(r => { %>
-            <div class="flex items-center gap-3 py-2 border-b-2 border-gray-200 text-sm">
-              <span class="font-semibold w-14 shrink-0"><%= r.code %></span>
-              <span class="flex-1 truncate"><%= r.title %></span>
-              <%- include("../partials/status-badge", { status: r.status }) %>
-              <a href="/user/requests/<%= r.id %>"
-                 class="px-2 py-0.5 rounded border border-gray-600 bg-gray-100 text-xs whitespace-nowrap hover:bg-gray-200">
-                รายละเอียด
-              </a>
-            </div>
+          <% myRequests.slice(0, 5).forEach(r => { %>
+            <a href="/user/requests/<%= r.id %>"
+               class="block mt-4 border-b pb-4">
+
+              <p class="font-semibold">
+                <%= r.code %> — <%= r.title %>
+              </p>
+
+              <p class="mt-2 text-sm text-gray-500">
+                <%= r.status %>
+              </p>
+            </a>
           <% }) %>
+
+          <a href="/user/requests"
+             class="inline-block mt-5
+                    text-[#1F2A8A] underline">
+            ดูคำร้องทั้งหมด
+          </a>
         </div>
 
       </div>
     </section>
   </main>
 </div>
+
 </body>
 </html>

@@ -1,6 +1,30 @@
-<% const menus=[ { key: "home" , label: "หน้าหลัก" , href: "/user/home" }, { key: "new" , label: "แจ้งปัญหา" ,
-    href: "/user/requests/new" }, { key: "requests" , label: "สถานะคำร้องของฉัน" , href: "/user/requests" }, {
-    key: "notifications" , label: "แจ้งเตือน" , href: "/user/notifications" }, ]; %>
+<% const menus=[ 
+    { 
+        key: "home" ,
+        label: "หน้าหลัก" ,
+        href: "/user/home"
+    },
+    {
+      key: "issues",
+      label: "ปัญหาที่ถูกรายงานแล้ว",
+      href: "/user/issues"
+    },
+    { 
+        key: "new" ,
+        label: "แจ้งปัญหา" ,
+        href: "/user/requests/new"
+    },
+    {
+        key: "requests" ,
+        label: "สถานะคำร้องของฉัน" ,
+        href: "/user/requests"
+    }, 
+    {
+        key: "notifications" ,
+        label: "แจ้งเตือน" ,
+        href: "/notifications"
+    },
+]; %>
 
     <aside class="w-[220px] min-h-screen bg-[#161D63] flex flex-col shrink-0">
         <div class="px-6 py-6">

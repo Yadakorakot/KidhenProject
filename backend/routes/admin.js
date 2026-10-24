@@ -2,9 +2,12 @@ const express = require("express");
 const router = express.Router();
 const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
 const { notify } = require("../data/mockNotifications");
-const { users, ROLES } = require("../data/mockUsers");
+const { users, ROLES, saveUsers } = require("../data/mockUsers");
 const { faqs, FAQ_STATUSES } = require("../data/mockFaqs");
 const { formatThaiDate } = require("../utils/date");
+const { avatarUpload } = require("../utils/upload");
+const { FACULTIES, DEPARTMENTS, studentIdFromEmail, facultyFromStudentId } = require("../data/options");
+const { buildDashboardData } = require("../utils/dashboard");
 
 // ทุกหน้าในไฟล์นี้ ต้องเป็น ADMIN เท่านั้น
 router.use((req, res, next) => {
@@ -14,7 +17,13 @@ router.use((req, res, next) => {
 
 // หน้า Dashboard
 router.get("/dashboard", (req, res) => {
-  res.render("admin/dashboard", { title: "Dashboard", active: "dashboard" });
+  res.render("dashboard", {
+    title: "Dashboard",
+    active: "dashboard",
+    base: "/admin",
+    role: "admin",
+    ...buildDashboardData(),
+  });
 });
 
 // หน้า จัดการคำร้อง (ค้นหา + กรอง)
@@ -127,71 +136,106 @@ router.get("/users", (req, res) => {
   });
 });
 
-// หน้า จัดการปัญหาที่พบบ่อย (ค้นหา + กรอง)
-router.get("/faq", (req, res) => {
-  const { q = "", type = "", status = "" } = req.query;
-  const keyword = q.trim().toLowerCase();
+// ลบผู้ใช้
+router.post("/users/:id/delete", (req, res) => {
+  const index = users.findIndex((u) => u.id === Number(req.params.id));
 
-  const list = faqs
-    .filter((f) =>
-      (!keyword || f.title.toLowerCase().includes(keyword)) &&
-      (!type || f.type === type) &&
-      (!status || f.status === status)
-    )
-    .sort((a, b) => b.updatedAt - a.updatedAt); // ล่าสุดขึ้นก่อน
-
-  res.render("admin/faq", {
-    title: "จัดการปัญหาที่พบบ่อย",
-    active: "faq",
-    list,
-    TYPES,
-    FAQ_STATUSES,
-    filters: { q, type, status },
-    formatThaiDate,
-  });
-});
-
-// ลบปัญหาที่พบบ่อย
-router.post("/faq/:id/delete", (req, res) => {
-  const index = faqs.findIndex((f) => f.id === Number(req.params.id));
-  if (index !== -1) faqs.splice(index, 1);
-  res.redirect(req.get("Referer") || "/admin/faq");
-});
-
-// หน้า รายละเอียดปัญหาที่พบบ่อย
-router.get("/faq/:id", (req, res) => {
-  const item = faqs.find((f) => f.id === Number(req.params.id));
-  if (!item) return res.redirect("/admin/faq");
-
-  res.render("admin/faq-detail", {
-    title: "จัดการปัญหาที่พบบ่อย",
-    active: "faq",
-    item,
-    error: null,
-  });
-});
-
-// กดปุ่ม อนุมัติ → บันทึกคำอธิบาย + เผยแพร่
-router.post("/faq/:id/approve", (req, res) => {
-  const item = faqs.find((f) => f.id === Number(req.params.id));
-  if (!item) return res.redirect("/admin/faq");
-
-  const answer = (req.body.answer || "").trim();
-
-  if (!answer) {
-    return res.render("admin/faq-detail", {
-      title: "จัดการปัญหาที่พบบ่อย",
-      active: "faq",
-      item,
-      error: "กรุณาเขียนคำอธิบายก่อนเผยแพร่",
-    });
+  // ห้ามลบบัญชีที่กำลังใช้งานอยู่ (กันลบตัวเองแล้วเข้าระบบไม่ได้)
+  if (index !== -1 && users[index].username !== req.session.user.username) {
+    users.splice(index, 1);
+    saveUsers();
   }
 
-  item.answer = answer;
-  item.status = "เผยแพร่แล้ว";
-  item.updatedAt = new Date();
+  res.redirect("/admin/users");
+});
 
-  res.redirect("/admin/faq");
+// ---------- แก้ไขข้อมูลผู้ใช้ ----------
+function renderUserEdit(res, target, extra = {}) {
+  const autoFaculty =
+    target.role === "USER" ? facultyFromStudentId(studentIdFromEmail(target.email)) : null;
+
+  res.render("admin/user-edit", {
+    title: "จัดการผู้ใช้",
+    active: "users",
+    target,
+    ROLES,
+    FACULTIES,
+    DEPARTMENTS,
+    autoFaculty,
+    error: null,
+    saved: false,
+    ...extra,
+  });
+}
+
+// เปิดหน้าแก้ไข
+router.get("/users/:id", (req, res) => {
+  const target = users.find((u) => u.id === Number(req.params.id));
+  if (!target) return res.redirect("/admin/users");
+  renderUserEdit(res, target, { saved: req.query.saved === "1" });
+});
+
+// กด บันทึกข้อมูล
+router.post("/users/:id", (req, res) => {
+  avatarUpload.single("avatar")(req, res, (err) => {
+    const target = users.find((u) => u.id === Number(req.params.id));
+    if (!target) return res.redirect("/admin/users");
+
+    if (err) {
+      return renderUserEdit(res, target, { error: "อัปโหลดรูปไม่สำเร็จ: ต้องเป็นไฟล์รูป และไม่เกิน 2MB" });
+    }
+
+    const firstName = (req.body.firstName || "").trim();
+    const lastName = (req.body.lastName || "").trim();
+    const role = req.body.role;
+    const isSelf = target.username === req.session.user.username;
+
+    if (!firstName || !lastName) {
+      return renderUserEdit(res, target, { error: "กรุณากรอกชื่อและนามสกุล" });
+    }
+    if (!ROLES.includes(role)) {
+      return renderUserEdit(res, target, { error: "บทบาทไม่ถูกต้อง" });
+    }
+    if (isSelf && role !== "ADMIN") {
+      return renderUserEdit(res, target, { error: "ไม่สามารถลดบทบาทบัญชีของตัวเองได้" });
+    }
+
+    // คณะ/ฝ่าย หลายคู่
+        // คณะ/ฝ่าย หลายคู่ (รับเฉพาะค่าที่อยู่ในรายการ)
+    const faculties = [].concat(req.body.faculty || []);
+    const departments = [].concat(req.body.department || []);
+    const facultyNames = FACULTIES.map((f) => f.name);
+    const units = faculties
+      .map((f, i) => ({ faculty: f.trim(), department: (departments[i] || "").trim() }))
+      .filter((u) => u.faculty || u.department)
+      .filter((u) =>
+        (!u.faculty || facultyNames.includes(u.faculty)) &&
+        (!u.department || DEPARTMENTS.includes(u.department))
+      );
+
+    // นักศึกษา: ใช้คณะจากรหัสนักศึกษาเสมอ
+    const detected = role === "USER" ? facultyFromStudentId(studentIdFromEmail(target.email)) : null;
+    if (detected) {
+      units.length = 0;
+      units.push({ faculty: detected.name, department: "นักศึกษา" });
+    }
+
+    // บันทึกลงข้อมูลผู้ใช้
+    target.firstName = firstName;
+    target.lastName = lastName;
+    target.name = `${firstName} ${lastName}`;
+    target.role = role;
+    target.units = units;
+    // สรุปเป็นข้อความ ไว้แสดงในตารางและหน้าโปรไฟล์
+    target.faculty = units.map((u) => u.faculty).filter(Boolean).join(", ") || "-";
+    target.department = units.map((u) => u.department).filter(Boolean).join(", ") || "-";
+    if (req.file) target.avatar = "/uploads/avatars/" + req.file.filename;
+
+    saveUsers();
+    if (isSelf) req.session.user.name = target.name;
+
+    res.redirect(`/admin/users/${target.id}?saved=1`);
+  });
 });
 
 module.exports = router;

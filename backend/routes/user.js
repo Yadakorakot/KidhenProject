@@ -6,7 +6,8 @@ const router = express.Router();
 const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
 const { faqs } = require("../data/mockFaqs");
 const { formatThaiDate, formatThaiShortDate } = require("../utils/date");
-const { notifications, saveNotifications } = require("../data/mockNotifications");
+const { notify } = require("../data/mockNotifications");
+const { users } = require("../data/mockUsers");
 
 // ---------- ตั้งค่าอัปโหลดรูป ----------
 const upload = multer({
@@ -26,6 +27,25 @@ router.use((req, res, next) => {
   if (req.session.user?.role !== "USER") return res.redirect("/login");
   next();
 });
+
+// แจ้งเตือน Admin ทุกคน + Staff ที่ดูแลฝ่ายตรงกับประเภทคำร้อง
+function notifyNewRequest(item, requesterName) {
+  const admins = users.filter((u) => u.role === "ADMIN");
+  const allStaff = users.filter((u) => u.role === "STAFF");
+  const staffForType = allStaff.filter((u) =>
+    (u.units || []).some((unit) => unit.department === item.type)
+  );
+  const targets = [...admins, ...(staffForType.length ? staffForType : allStaff)];
+
+  targets.forEach((u) =>
+    notify(u.username, {
+      requestId: item.id,
+      title: `มีคำร้องใหม่ ${item.code}`,
+      message: `${item.title} (${item.type}) จาก ${requesterName}`,
+      status: item.status,
+    })
+  );
+}
 
 // ---------- หน้าหลัก ----------
 router.get("/home", (req, res) => {
@@ -96,6 +116,8 @@ router.post("/requests/new", (req, res) => {
 
     saveRequests();
 
+    notifyNewRequest(requests[0], req.session.user.name || req.session.user.username);
+
     res.redirect("/user/home?sent=1");
   });
 });
@@ -151,50 +173,6 @@ router.get("/requests/:id", (req, res) => {
     steps,
     current,
   });
-});
-
-// ---------- หน้าแจ้งเตือน ----------
-router.get("/notifications", (req, res) => {
-  const username = req.session.user.username;
-  const tab = req.query.tab || "all";
-
-  const mine = notifications.filter((n) => n.to === username);
-
-  let list = mine;
-  if (tab === "unread")  list = mine.filter((n) => !n.read);
-  if (tab === "request") list = mine.filter((n) => n.category === "request");
-  if (tab === "system")  list = mine.filter((n) => n.category === "system");
-
-  // 1) ทำสำเนาไว้แสดง โดยยังเป็นสถานะ "ยังไม่อ่าน" ตามเดิม
-  const view = list.map((n) => ({ ...n, time: formatThaiDate(n.createdAt) }));
-
-  // 2) แล้วค่อยบันทึกว่าอ่านแล้ว (ครั้งหน้าที่เปิดจะเป็นสีปกติ)
-  let changed = false;
-  list.forEach((n) => {
-    if (!n.read) { n.read = true; changed = true; }
-  });
-  if (changed) saveNotifications();
-
-  // อัปเดตตัวเลขบนกระดิ่งให้หายไปทันทีในหน้านี้
-  res.locals.unreadCount = mine.filter((n) => !n.read).length;
-
-  res.render("user/notifications", {
-    title: "แจ้งเตือน",
-    active: "notifications",
-    list: view,
-    tab,
-  });
-});
-
-// กดที่แจ้งเตือน → ไปหน้ารายละเอียดคำร้องนั้น
-router.get("/notifications/:id", (req, res) => {
-  const n = notifications.find(
-    (x) => x.id === Number(req.params.id) && x.to === req.session.user.username
-  );
-  if (!n) return res.redirect("/user/notifications");
-
-  if (!n.read) { n.read = true; saveNotifications(); }
-  res.redirect(n.requestId ? `/user/requests/${n.requestId}` : "/user/notifications");
 });
 
 module.exports = router;

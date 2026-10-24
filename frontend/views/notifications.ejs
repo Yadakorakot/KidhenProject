@@ -12,24 +12,23 @@
   const TABS = [
     { key: "all",     label: "ทั้งหมด" },
     { key: "unread",  label: "ยังไม่ได้อ่าน" },
-    { key: "request", label: "คำร้องของฉัน" },
-    { key: "system",  label: "ประกาศจากระบบ" },
+    { key: "request", label: role === "user" ? "คำร้องของฉัน" : "คำร้อง" },
   ];
 %>
 
 <div class="flex min-h-screen">
-  <%- include("../partials/sidebar-user") %>
+  <%- include(`partials/sidebar-${role}`) %>
 
-  <main class="flex-1">
-    <%- include("../partials/topbar") %>
+  <main class="flex-1 min-w-0">
+    <%- include("partials/topbar") %>
 
     <section class="p-6 flex flex-col gap-6">
 
       <!-- แท็บ -->
-      <div class="flex flex-wrap gap-6 px-2">
+      <div class="flex flex-wrap gap-4 px-2">
         <% TABS.forEach(t => { %>
-          <a href="/user/notifications?tab=<%= t.key %>"
-             class="w-[118px] h-8 rounded-md text-xs flex items-center justify-center
+          <a href="/notifications?tab=<%= t.key %>"
+             class="w-[130px] h-9 rounded-md text-sm flex items-center justify-center
                     <%= tab === t.key
                         ? 'bg-[#F6A85A] text-white font-semibold'
                         : 'bg-white border border-gray-400 text-gray-700 hover:bg-gray-50' %>">
@@ -42,17 +41,16 @@
       <div class="flex flex-col gap-1 bg-[#E2E1DD] min-h-[560px]">
 
         <% if (list.length === 0) { %>
-          <div class="bg-white flex-1 flex items-center justify-center text-sm text-gray-400">
+          <div class="bg-white flex-1 flex items-center justify-center text-base text-gray-400">
             ไม่มีการแจ้งเตือน
           </div>
         <% } %>
 
         <% list.forEach(n => { %>
-          <a href="/user/notifications/<%= n.id %>"
-             class="flex items-center gap-5 px-5 h-[78px] border-l-4 hover:brightness-95
+          <a href="/notifications/<%= n.id %>"
+             class="flex items-center gap-5 px-5 h-[84px] border-l-4 hover:brightness-95
                     <%= n.read ? 'bg-white border-transparent' : 'bg-[#FFF6EB] border-[#F6A85A]' %>">
 
-            <!-- วงกลมไอคอน -->
             <div class="relative w-12 h-12 shrink-0 rounded-full bg-[#E2E2E2] flex items-center justify-center">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>
@@ -62,21 +60,18 @@
               <% } %>
             </div>
 
-            <!-- หัวข้อ + ข้อความ -->
             <div class="flex-1 min-w-0">
-              <p class="text-sm truncate <%= n.read ? 'font-medium' : 'font-bold' %>"><%= n.title %></p>
-              <p class="text-xs text-gray-500 mt-1 truncate"><%= n.message %></p>
+              <p class="text-base truncate <%= n.read ? 'font-medium' : 'font-bold' %>"><%= n.title %></p>
+              <p class="text-sm text-gray-500 mt-1 truncate"><%= n.message %></p>
             </div>
 
-            <!-- สถานะ -->
             <% if (n.status) { %>
               <div class="hidden md:block shrink-0">
-                <%- include("../partials/status-badge", { status: n.status }) %>
+                <%- include("partials/status-badge", { status: n.status }) %>
               </div>
             <% } %>
 
-            <!-- เวลา -->
-            <p class="hidden md:block w-[170px] shrink-0 text-right text-xs text-gray-500">
+            <p class="hidden md:block w-[190px] shrink-0 text-right text-sm text-gray-500">
               <%= n.time %> &nbsp;&gt;
             </p>
           </a>

@@ -28,7 +28,7 @@ function findMe(req) {
 }
 
 function renderProfile(res, me, extra = {}) {
-  res.render("user/profile", {
+  res.render("profile", {
     title: "แก้ไขข้อมูลผู้ใช้",
     active: "profile",
     me,

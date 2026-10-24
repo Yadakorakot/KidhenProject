@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
 const { notify } = require("../data/mockNotifications");
+const { buildDashboardData } = require("../utils/dashboard");
 
 // ทุกหน้าในไฟล์นี้ ต้องเป็น STAFF เท่านั้น
 router.use((req, res, next) => {
@@ -11,7 +12,13 @@ router.use((req, res, next) => {
 
 // หน้า Dashboard
 router.get("/dashboard", (req, res) => {
-  res.render("staff/dashboard", { title: "Dashboard", active: "dashboard" });
+  res.render("dashboard", {
+    title: "Dashboard",
+    active: "dashboard",
+    base: "/staff",
+    role: "staff",
+    ...buildDashboardData(),
+  });
 });
 
 // หน้า จัดการคำร้อง (ค้นหา + กรอง)
