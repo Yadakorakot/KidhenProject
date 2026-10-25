@@ -15,8 +15,12 @@ router.get("/login", (req, res) => res.render("auth/login"));
 
 router.get("/signin", (req, res) => res.render("auth/signin", { error: null }));
 
-router.post("/signin", (req, res) => {
-  const key = (req.body.username || "").trim().toLowerCase();
+router.post("/signin", (req, res, next) => {
+  // แก้: ป้องกันค่าที่ไม่ใช่ข้อความทำให้ .trim() เกิด error
+  const key =
+    typeof req.body.username === "string"
+      ? req.body.username.trim().toLowerCase()
+      : "";
   const account = users.find((u) => u.username === key);
 
   if (!account || account.password !== req.body.password) {

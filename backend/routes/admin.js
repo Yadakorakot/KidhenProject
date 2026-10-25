@@ -3,8 +3,6 @@ const router = express.Router();
 const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
 const { notify } = require("../data/mockNotifications");
 const { users, ROLES, saveUsers } = require("../data/mockUsers");
-const { faqs, FAQ_STATUSES } = require("../data/mockFaqs");
-const { formatThaiDate } = require("../utils/date");
 const { avatarUpload } = require("../utils/upload");
 const { FACULTIES, DEPARTMENTS, studentIdFromEmail, facultyFromStudentId } = require("../data/options");
 const { buildDashboardData } = require("../utils/dashboard");
@@ -47,14 +45,8 @@ router.get("/requests", (req, res) => {
   });
 });
 
-// แจ้งเตือน User
 router.post("/requests/:id/status", (req, res) => {
-  const item = requests.find((r) => r.id === Number(req.params.id));
-  if (item && STATUSES.includes(req.body.status) && item.status !== req.body.status) {
-    item.status = req.body.status;
-    notify(item.owner, item.id, `คำร้อง ${item.code} สถานะ: ${item.status}`);
-  }
-  res.redirect(req.get("Referer") || "/admin/requests");
+  updateRequest(req, res, false);
 });
 
 // หน้า ดำเนินการคำร้อง
@@ -71,43 +63,73 @@ router.get("/requests/:id", (req, res) => {
   });
 });
 
-// กดปุ่ม อัปเดตสถานะ
-// กดปุ่ม อัปเดตสถานะ → บันทึก + แจ้งเตือน User
-router.post("/requests/:id/update", (req, res) => {
-  const item = requests.find((r) => r.id === Number(req.params.id));
-  if (!item) return res.redirect("/admin/requests");
+// เพิ่ม: บันทึกสถานะ ประวัติ และแจ้งเตือนร่วมกัน
+function updateRequest(req, res, updateNote) {
+  const item = requests.find(
+    request => request.id === Number(req.params.id)
+  );
 
-  const oldStatus = item.status;
-  const oldNote = item.note;
-
-  if (STATUSES.includes(req.body.status)) item.status = req.body.status;
-
-  if (item.status !== oldStatus) {
-  item.history = item.history || [];
-  item.history.push({ status: item.status, at: new Date() });
-}
-  item.note = (req.body.note || "").trim();
-
-  // ส่งแจ้งเตือนเฉพาะเมื่อมีอะไรเปลี่ยน
-  if (item.status !== oldStatus || item.note !== oldNote) {
-  let title;
-  if (item.status !== oldStatus && item.status === "เสร็จสิ้น") {
-    title = `คำร้อง ${item.code} ได้รับการแก้ไขแล้ว`;
-  } else if (item.status !== oldStatus) {
-    title = `คำร้อง ${item.code} ได้รับการอัพเดตสถานะ`;
-  } else {
-    title = `คำร้อง ${item.code} มีข้อความจากเจ้าหน้าที่`;
+  if (!item) {
+    return res.status(404).send("ไม่พบคำร้อง");
   }
 
-  let message = `สถานะเปลี่ยนเป็น ${item.status}`;
-  if (item.note) message += ` ${item.note}`;
+  const status = req.body.status;
 
-  notify(item.owner, { requestId: item.id, title, message, status: item.status });
+  if (!STATUSES.includes(status)) {
+    return res.status(400).send("สถานะไม่ถูกต้อง");
+  }
+
+  // แก้: endpoint เปลี่ยนสถานะอย่างเดียวต้องไม่ล้าง note
+  const note =
+    updateNote && typeof req.body.note === "string"
+      ? req.body.note.trim()
+      : item.note || "";
+
+  if (note.length > 5000) {
+    return res.status(400).send(
+      "ข้อความต้องไม่เกิน 5000 ตัวอักษร"
+    );
+  }
+
+  const changed = status !== item.status;
+
+  if (changed || note !== (item.note || "")) {
+    item.status = status;
+    item.note = note;
+
+    if (changed) {
+      if (!Array.isArray(item.history)) {
+        item.history = [];
+      }
+
+      item.history.push({
+        status,
+        at: new Date().toISOString(),
+      });
+    }
+
+    // แก้: ทั้งสอง endpoint ต้องบันทึกลงไฟล์
+    saveRequests();
+
+    // แก้: ส่ง object ให้ตรงกับ signature ของ notify
+    notify(item.owner, {
+      requestId: item.id,
+      title: `คำร้อง ${item.code} ได้รับการอัปเดต`,
+      message:
+        `สถานะ: ${status}` +
+        (note ? ` · ${note}` : ""),
+      status,
+    });
+  }
+
+  // แก้: ไม่ใช้ Referer เป็นปลายทาง redirect
+  res.redirect(
+    `/admin/requests/${item.id}?saved=1`
+  );
 }
 
-  saveRequests();
-
-  res.redirect(`/admin/requests/${item.id}?saved=1`);
+router.post("/requests/:id/update", (req, res) => {
+  updateRequest(req, res, true);
 });
 
 // หน้า จัดการผู้ใช้ (ค้นหา + กรองบทบาท)
@@ -212,7 +234,16 @@ router.post("/users/:id", (req, res) => {
         (!u.faculty || facultyNames.includes(u.faculty)) &&
         (!u.department || DEPARTMENTS.includes(u.department))
       );
-
+    const staffFaculties = new Set(units.map(unit => unit.faculty).filter(Boolean));
+    if (
+      role === "STAFF" &&
+      staffFaculties.size !== 1
+    ) {
+      return renderUserEdit(res, target, {
+        error:
+          "Staff ต้องมีคณะเดียว หรือเลือกพื้นที่ส่วนกลาง",
+      });
+    }  
     // นักศึกษา: ใช้คณะจากรหัสนักศึกษาเสมอ
     const detected = role === "USER" ? facultyFromStudentId(studentIdFromEmail(target.email)) : null;
     if (detected) {
@@ -226,6 +257,8 @@ router.post("/users/:id", (req, res) => {
     target.name = `${firstName} ${lastName}`;
     target.role = role;
     target.units = units;
+    delete target.facultyId;
+    delete target.facultyOther;
     // สรุปเป็นข้อความ ไว้แสดงในตารางและหน้าโปรไฟล์
     target.faculty = units.map((u) => u.faculty).filter(Boolean).join(", ") || "-";
     target.department = units.map((u) => u.department).filter(Boolean).join(", ") || "-";

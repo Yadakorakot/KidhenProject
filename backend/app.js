@@ -21,6 +21,34 @@ const { notifications } = require("./data/mockNotifications");
 
 const app = express();
 
+const production = process.env.NODE_ENV === "production";
+
+if (
+  production &&
+  (
+    !process.env.SESSION_SECRET ||
+    process.env.SESSION_SECRET.trim().length < 32
+  )
+) {
+  throw new Error(
+    "SESSION_SECRET ต้องมีอย่างน้อย 32 ตัวอักษรเมื่อใช้ production"
+  );
+}
+
+// เพิ่ม: ให้ ALB ตรวจเว็บได้โดยไม่ต้อง login
+app.get("/healthz", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+  });
+});
+
+// Health check
+app.get("/healthz", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+  });
+});
+
 app.use("/internal/ai", require("./routes/ai-job"));
 
 // ตั้งค่า EJS
@@ -54,7 +82,24 @@ app.use(
 
 // ของเดิม: ข้อมูลสำหรับ topbar และ sidebar
 app.use((req, res, next) => {
-  const username = req.session.user?.username;
+  const account = users.find(user => user.username === username);
+
+  // แก้: บัญชีที่ถูกลบต้องใช้งาน session เดิมต่อไม่ได้
+  if (req.session.user && !account) {
+    return req.session.destroy(error => {
+      if (error) return next(error);
+      res.redirect("/login");
+    });
+  }
+
+  // แก้: การเปลี่ยน role มีผลใน request ถัดไป
+  if (account) {
+    req.session.user = {
+      username: account.username,
+      name: account.name,
+      role: account.role,
+    };
+  }
 
   res.locals.currentUser =
     req.session.user || null;
@@ -85,5 +130,20 @@ app.use("/profile", profileRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/user", userRoutes);
 
+app.use((error, req, res, next) => {
+  console.error("[HTTP]", error.message);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  const status = error.status || 500;
+
+  res.status(status).type("text").send(
+    status < 500
+      ? error.message
+      : "ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง"
+  );
+});
 
 module.exports = app;

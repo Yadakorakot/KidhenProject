@@ -8,29 +8,15 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "init-db": "node db.js",
-    "create-admin": "node server.js create-admin",
-    "batch": "node workers/batch-ai.js",
-    "outbox": "node workers/maintenance.js outbox",
-    "sla": "node workers/maintenance.js sla",
-    "retention": "node workers/maintenance.js retention"
+    "init-db": "node db.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.0.0",
-    "@aws-sdk/client-ses": "^3.0.0",
-    "@aws-sdk/client-sns": "^3.0.0",
-    "@aws-sdk/client-sqs": "^3.0.0",
-    "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "bcryptjs": "^3.0.0",
-    "dotenv": "^16.0.0",
+    "ejs": "^3.1.10",
     "express": "^5.1.0",
-    "express-rate-limit": "^8.0.0",
     "express-session": "^1.18.1",
-    "google-auth-library": "^10.0.0",
-    "helmet": "^8.0.0",
     "multer": "^2.5.0",
-    "mysql2": "^3.0.0",
-    "otplib": "^12.0.1"
+    "dotenv": "^16.0.0",
+    "mysql2": "^3.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

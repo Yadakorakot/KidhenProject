@@ -21,6 +21,7 @@ const { generateJSON } = require("./gemini");
 // เพิ่ม: ใช้ข้อมูลสถานที่และสิทธิ์คณะเดียวกับระบบแจ้งคำร้อง
 const locations = require("./location");
 const access = require("./faculty-access");
+const { notifyNewRequest } = require("./notification");
 
 // คงชื่อไฟล์เดิม เพื่ออ่านข้อมูลที่มีอยู่
 const FILE = "issue-summaries-v2";
@@ -882,6 +883,7 @@ function support(id, user, form) {
 
   requests.unshift(request);
   saveRequests();
+  notifyNewRequest(request)
 
   // เชื่อมทันที ไม่ต้องเรียก AI
   data.links[request.id] = {

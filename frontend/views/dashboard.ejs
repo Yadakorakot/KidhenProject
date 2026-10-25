@@ -66,10 +66,16 @@
               <p class="text-sm font-semibold text-gray-600">ผู้ใช้งานทั้งหมด</p>
               <p class="text-4xl font-bold text-[#E07B12]"><%= userCount %></p>
             </a>
-            <a href="/admin/faq?status=<%= encodeURIComponent('รอตรวจสอบ') %>"
-               class="rounded-xl bg-[#FDF1EA] p-4 flex flex-col justify-between hover:brightness-95">
-              <p class="text-sm font-semibold text-gray-600">FAQ รอตรวจสอบ</p>
-              <p class="text-4xl font-bold text-[#E01E1E]"><%= pendingFaq %></p>
+            <a
+              href="/admin/faq?status=published"
+              class="rounded-xl bg-[#FDF1EA] p-4 flex flex-col justify-between hover:brightness-95">
+              <p class="text-sm font-semibold text-gray-600">
+                หัวข้อปัญหาที่เผยแพร่
+              </p>
+
+              <p class="text-4xl font-bold text-[#E01E1E]">
+                <%= publishedTopics %>
+              </p>
             </a>
           <% } %>
         </div>

@@ -1,13 +1,12 @@
 const express = require("express");
 const path = require("path");
+const fs = require("node:fs");
 const multer = require("multer");
 const router = express.Router();
 
 const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
-const { faqs } = require("../data/mockFaqs");
+const { notifyNewRequest } = require("../service/notification");
 const { formatThaiDate, formatThaiShortDate } = require("../utils/date");
-const { notify } = require("../data/mockNotifications");
-const { users } = require("../data/mockUsers");
 const access = require("../service/faculty-access");
 
 
@@ -47,25 +46,6 @@ router.use((req, res, next) => {
   next();
 });
 
-// แจ้งเตือน Admin ทุกคน + Staff ที่ดูแลฝ่ายตรงกับประเภทคำร้อง
-function notifyNewRequest(item, requesterName) {
-  const admins = users.filter((u) => u.role === "ADMIN");
-  const allStaff = users.filter((u) => u.role === "STAFF");
-  const staffForType = allStaff.filter((u) =>
-    (u.units || []).some((unit) => unit.department === item.type)
-  );
-  const targets = [...admins, ...(staffForType.length ? staffForType : allStaff)];
-
-  targets.forEach((u) =>
-    notify(u.username, {
-      requestId: item.id,
-      title: `มีคำร้องใหม่ ${item.code}`,
-      message: `${item.title} (${item.type}) จาก ${requesterName}`,
-      status: item.status,
-    })
-  );
-}
-
 // ---------- หน้าหลัก ----------
 router.get("/home", (req, res) => {
   const username = req.session.user.username;
@@ -82,7 +62,6 @@ router.get("/home", (req, res) => {
     title: "หน้าหลัก",
     active: "home",
     myRequests,
-    faqs: faqs.filter((f) => f.status === "เผยแพร่แล้ว").slice(0, 5),
     stats,
     sent: req.query.sent === "1",
   });
@@ -160,7 +139,7 @@ router.post("/requests/new", (req, res) => {
         });
 
         saveRequests();
-
+        notifyNewRequest(requests[0]);
         res.redirect("/user/home?sent=1");
       }
     );

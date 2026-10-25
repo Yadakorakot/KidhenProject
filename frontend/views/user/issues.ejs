@@ -107,12 +107,11 @@
                      name="_csrf"
                      value="<%= aiCsrf %>">
 
-              <input
-                name="location"
-                required
-                maxlength="200"
-                placeholder="จุดที่พบ เช่น อาคาร A ห้อง 207"
-                class="border rounded-lg p-3">
+              <%- include("../partials/location-fields", {
+                placeValues: t.locationInfo,
+                FACULTIES,
+                studentScope
+              }) %>
 
               <label>
                 วันเวลาที่พบ

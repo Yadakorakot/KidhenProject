@@ -5,7 +5,7 @@ const {
 } = require("../data/mockRequests");
 
 const { users } = require("../data/mockUsers");
-const { faqs } = require("../data/mockFaqs");
+const issues = require("../service/issues");
 
 // ของเดิม: เวลาที่ยื่นคำร้องจากรายการแรกในประวัติ
 function createdAt(request) {
@@ -120,11 +120,7 @@ function buildDashboardData(list = requests) {
     // คง: สองค่านี้ใช้เฉพาะการ์ดของ Admin ใน EJS
     userCount: users.length,
 
-    // คงไว้ก่อน: ยังเป็นตัวเลขจาก FAQ เก่า
-    // ต้องเปลี่ยนเป็นข้อมูลจริงเมื่อปรับการ์ด AI
-    pendingFaq: faqs.filter(
-      item => item.status === "รอตรวจสอบ"
-    ).length,
+    publishedTopics: issues.publicTopics().length,
 
     // แก้: คำร้องล่าสุดต้องมาจาก list ที่กรองแล้วด้วย
     latest: list.slice(0, 6),
