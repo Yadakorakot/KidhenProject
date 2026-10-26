@@ -5,7 +5,7 @@ const multer = require("multer");
 const router = express.Router();
 
 const { requests, TYPES, STATUSES, saveRequests } = require("../data/mockRequests");
-const { notifyNewRequest } = require("../service/notification");
+const { notifyNewRequest } = require("../service/notifications");
 const { formatThaiDate, formatThaiShortDate } = require("../utils/date");
 const access = require("../service/faculty-access");
 

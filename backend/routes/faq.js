@@ -12,13 +12,7 @@ const issues = require(
   "../service/issues"
 );
 
-const {
-  TYPES,
-  requests,
-} = require("../data/mockRequests");
-
-// เพิ่ม: ใช้ตัวแปลงสถานที่กลาง
-const locations = require("../service/location");
+const { TYPES } = require("../data/mockRequests");
 
 // เพิ่ม: แสดงเวลาไทยแม้ server อยู่ต่างประเทศ
 const formatThaiDate = (date) =>
@@ -233,34 +227,6 @@ router.post(
 
       req.body.published ===
         "true"
-    );
-  })
-);
-
-// เพิ่ม: เปิดหน้าแก้สถานที่คำร้องเก่า เฉพาะ Admin
-router.get("/requests/:id/location", (req, res) => {
-  const item = requests.find(
-    request => request.id === Number(req.params.id)
-  );
-
-  if (!item) {
-    return res.status(404).send("ไม่พบคำร้อง");
-  }
-
-  res.render("admin/request-location", {
-    item,
-    FACULTIES: locations.FACULTIES,
-    placeValues: locations.forRequest(item),
-  });
-});
-
-// เพิ่ม: ใช้ middleware Admin และ CSRF ที่มีอยู่แล้ว
-router.post(
-  "/requests/:id/location",
-  action(req => {
-    issues.updateLocation(
-      req.params.id,
-      req.body
     );
   })
 );

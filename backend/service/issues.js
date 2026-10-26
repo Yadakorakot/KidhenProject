@@ -21,7 +21,7 @@ const { generateJSON } = require("./gemini");
 // เพิ่ม: ใช้ข้อมูลสถานที่และสิทธิ์คณะเดียวกับระบบแจ้งคำร้อง
 const locations = require("./location");
 const access = require("./faculty-access");
-const { notifyNewRequest } = require("./notification");
+const { notifyNewRequest } = require("./notifications");
 
 // คงชื่อไฟล์เดิม เพื่ออ่านข้อมูลที่มีอยู่
 const FILE = "issue-summaries-v2";
@@ -896,25 +896,6 @@ function support(id, user, form) {
   return request.id;
 }
 
-// เพิ่ม: Admin เติมสถานที่ให้คำร้องเก่า
-// ไม่เปลี่ยนหัวข้อ รายละเอียด หรือสถานะงาน
-function updateLocation(id, form) {
-  const request = requests.find(
-    item => item.id === Number(id)
-  );
-
-  if (!request) {
-    throw new Error("ไม่พบคำร้อง");
-  }
-
-  const place = locations.fromForm(form);
-
-  request.locationInfo = place;
-  request.location = place.label;
-
-  saveRequests();
-}
-
 module.exports = {
   read,
   write,
@@ -925,5 +906,4 @@ module.exports = {
   editTopic,
   setPublished,
   support,
-  updateLocation,
 };

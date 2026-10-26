@@ -35,13 +35,6 @@ if (
   );
 }
 
-// เพิ่ม: ให้ ALB ตรวจเว็บได้โดยไม่ต้อง login
-app.get("/healthz", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-  });
-});
-
 // Health check
 app.get("/healthz", (req, res) => {
   res.status(200).json({
